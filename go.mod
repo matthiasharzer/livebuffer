@@ -1,6 +1,6 @@
 module github.com/matthiasharzer/livebuffer
 
-go 1.26.2
+go 1.26.4
 
 tool honnef.co/go/tools/cmd/staticcheck
 
