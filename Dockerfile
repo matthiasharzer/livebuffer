@@ -23,7 +23,7 @@ RUN go build  \
     -ldflags "-X github.com/matthiasharzer/livebuffer/cmd/version.version=$version"  \
     ./main.go
 
-FROM alpine:3.23
+FROM alpine:3.24
 
 RUN apk update && \
 		apk add --no-cache ffmpeg yt-dlp
