@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/matthiasharzer/livebuffer/cmd/run"
+	"github.com/matthiasharzer/livebuffer/cmd/twitch"
 	"github.com/matthiasharzer/livebuffer/cmd/version"
 
 	"github.com/spf13/cobra"
@@ -20,6 +21,7 @@ var rootCommand = &cobra.Command{
 func init() {
 	rootCommand.AddCommand(version.Command)
 	rootCommand.AddCommand(run.Command)
+	rootCommand.AddCommand(twitch.Command)
 }
 
 func main() {
