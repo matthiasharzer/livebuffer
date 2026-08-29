@@ -173,7 +173,9 @@ func (d *Director) GetStreams() ([]string, error) {
 	}
 	var streams []string
 	for _, file := range files {
-		streams = append(streams, filepath.Base(file))
+		fileName := filepath.Base(file)
+		fileNameWithoutExt := fileName[:len(fileName)-len(filepath.Ext(fileName))]
+		streams = append(streams, fileNameWithoutExt)
 	}
 	return streams, nil
 }
@@ -182,7 +184,7 @@ func (d *Director) GetStream(streamName string) (io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamPath := filepath.Join(d.bufferDirectory, streamName)
+	streamPath := filepath.Join(d.bufferDirectory, streamName+".m3u8")
 	_, err := os.Stat(streamPath)
 	if os.IsNotExist(err) {
 		return nil, nil
