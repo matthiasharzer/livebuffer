@@ -97,7 +97,10 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string) (*
 		cancelRecording: nil,
 		mu:              sync.Mutex{},
 	}
-	director.cleanupFiles()
+	err = director.cleanupFiles()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initially cleanup buffer files: %w", err)
+	}
 	return director, nil
 }
 
