@@ -11,74 +11,25 @@ import (
 	"time"
 
 	"github.com/matthiasharzer/livebuffer/logging"
+	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/util/fsutil"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 )
-
-type recordingSession struct {
-	recorder *twitch.Recorder
-	buffer   *VideoFileBuffer
-}
-
-func newRecordingSession(username string, bufferFilePath string) (*recordingSession, error) {
-	recorder, err := twitch.NewRecorder(username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create twitch recorder: %w", err)
-	}
-
-	buffer, err := NewVideoFileBuffer(bufferFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create video file buffer: %w", err)
-	}
-
-	return &recordingSession{
-		recorder: recorder,
-		buffer:   buffer,
-	}, nil
-}
-
-func (rs *recordingSession) Start(ctx context.Context) error {
-	reader, err := rs.recorder.Record(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start recording: %w", err)
-	}
-
-	go func() {
-		_, err := io.Copy(rs.buffer, reader)
-		if err != nil {
-			logging.Error("failed to write to video store", "error", err)
-		}
-	}()
-
-	return nil
-}
-
-func (rs *recordingSession) Close() error {
-	if rs.buffer != nil {
-		funcutils.LogError(rs.buffer.Close, "failed to close video buffer")
-	}
-	return nil
-}
-
-func (rs *recordingSession) FilePath() string {
-	return rs.buffer.filePath
-}
-
-type CreateReaderFunc func() (io.ReadCloser, error)
 
 // Director manages the livebuffer for twitch streams
 type Director struct {
 	maxStreams      int
 	bufferDirectory string
 	username        string
+	onlineChannel   observer.ReadonlyChannel[twitch.StreamOnlineState]
 	session         *recordingSession
 	cancelRecording func()
 
 	mu sync.Mutex
 }
 
-func NewDirector(maxStreams int, bufferBaseDirectory string, username string) (*Director, error) {
+func NewDirector(maxStreams int, bufferBaseDirectory string, username string, onlineChannel observer.ReadonlyChannel[twitch.StreamOnlineState]) (*Director, error) {
 	if maxStreams <= 0 {
 		return nil, errors.New("maxStreams must be greater than 0")
 	}
@@ -93,6 +44,7 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string) (*
 		maxStreams:      maxStreams,
 		bufferDirectory: bufferDir,
 		username:        username,
+		onlineChannel:   onlineChannel,
 		session:         nil,
 		cancelRecording: nil,
 		mu:              sync.Mutex{},
@@ -101,6 +53,8 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to initially cleanup buffer files: %w", err)
 	}
+
+	onlineChannel.Subscribe(director.onlineStateChanged)
 	return director, nil
 }
 
@@ -127,6 +81,7 @@ func (d *Director) cleanupFiles() error {
 }
 
 func (d *Director) stopRecordingStop() error {
+	logging.Info("stopping recording session", "username", d.username)
 	if d.cancelRecording != nil {
 		d.cancelRecording()
 		d.cancelRecording = nil
@@ -155,7 +110,22 @@ func (d *Director) createRecordingContext() (context.Context, context.CancelFunc
 	}
 }
 
-func (d *Director) WentLive() {
+func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
+	if state.IsOnline {
+		d.wentLive()
+	} else {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+
+		if d.cancelRecording != nil {
+			d.cancelRecording()
+			d.cancelRecording = nil
+		}
+	}
+}
+
+func (d *Director) wentLive() {
+	logging.Info("stream went live, starting recording session", "username", d.username)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -213,8 +183,9 @@ func (d *Director) GetStream(streamName string) (io.ReadCloser, error) {
 	defer d.mu.Unlock()
 
 	streamPath := filepath.Join(d.bufferDirectory, streamName)
-	if _, err := os.Stat(streamPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("stream %s does not exist", streamName)
+	_, err := os.Stat(streamPath)
+	if os.IsNotExist(err) {
+		return nil, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to stat stream %s: %w", streamName, err)
 	}
@@ -233,5 +204,6 @@ func (d *Director) GetStream(streamName string) (io.ReadCloser, error) {
 func (d *Director) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.onlineChannel.Unsubscribe(d.onlineStateChanged)
 	return d.stopRecordingStop()
 }

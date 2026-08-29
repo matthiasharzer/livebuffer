@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
+	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/spf13/cobra"
@@ -37,6 +38,7 @@ var Command = &cobra.Command{
 	Use:   "run",
 	Short: "Run the livebuffer server for twitch",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		username := "pokemonxp"
 
 		bufferDirectory := ".buffer"
 		err := os.MkdirAll(bufferDirectory, 0777)
@@ -44,16 +46,9 @@ var Command = &cobra.Command{
 			return err
 		}
 
-		director, err := buffer.NewDirector(2, bufferDirectory, "lars_tm")
-		if err != nil {
-			return err
-		}
-
-		_ = director
-
 		twitchAPI, err := getTwitchAPIClient("secret-dev", "http://localhost:4000/api/v1/twitch-event-sub")
 
-		userID, err := twitchAPI.GetUserID("lars_tm")
+		userID, err := twitchAPI.GetUserID(username)
 		if err != nil {
 			return err
 		}
@@ -63,20 +58,14 @@ var Command = &cobra.Command{
 			return err
 		}
 
-		_ = twitchClient
+		director, err := buffer.NewDirector(2, bufferDirectory, username, twitchClient.OnlineChannel())
+		if err != nil {
+			return err
+		}
 
-		twitchClient.OnlineChannel().Subscribe(func(data twitch.StreamOnlineState) {
-			logging.Info("stream online state changed", "is_online", data.IsOnline, "started_at", data.StartedAt)
+		_ = director
 
-		})
-
-		mux := http.NewServeMux()
-		mux.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("OK"))
-		})
-
-		mux.Handle("POST /api/v1/twitch-event-sub", twitchAPI.EventSubHTTPHandler())
+		mux := api.GetMux(twitchAPI, director)
 
 		addr := fmt.Sprintf("%s:%d", httpHost, httpPort)
 		logging.Info("starting livebuffer server", "host", httpHost, "port", httpPort)
@@ -94,40 +83,6 @@ var Command = &cobra.Command{
 		//
 		//time.Sleep(10 * time.Second)
 		//
-		//streams, err := director.GetStreams()
-		//if err != nil {
-		//	return err
-		//}
-		//fmt.Printf("Streams: %v\n", streams)
-		//
-		//if len(streams) == 0 {
-		//	return fmt.Errorf("no streams found")
-		//}
-		//
-		//fmt.Printf("Downloading stream: %s\n", streams[0])
-		//
-		//reader, err := director.GetStream(streams[0])
-		//if err != nil {
-		//	return err
-		//}
-		//defer reader.Close()
-		//
-		//fmt.Printf("Writing stream to output.ts\n")
-		//
-		//fi, err := os.Create("output.ts")
-		//if err != nil {
-		//	return err
-		//}
-		//defer fi.Close()
-		//
-		//fmt.Printf("Copying stream to output.ts\n")
-		//
-		//_, err = io.Copy(fi, reader)
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//fmt.Printf("Finished writing stream to output.ts\n")
 
 		return nil
 	},
