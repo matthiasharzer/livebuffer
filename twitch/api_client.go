@@ -72,6 +72,14 @@ func (c *APIClient) EventSubGetSubscriptions() ([]esb.Subscription, error) {
 	return subscriptions.Data, nil
 }
 
+func (c *APIClient) EventSubDeleteSubscription(subscriptionID string) error {
+	err := c.subClient.Unsubscribe(c.subContext, subscriptionID)
+	if err != nil {
+		return fmt.Errorf("failed to delete subscription %s: %w", subscriptionID, err)
+	}
+	return nil
+}
+
 func (c *APIClient) EventSubHTTPHandler() http.Handler {
 	return c.EventSubHandler
 }

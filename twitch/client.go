@@ -65,7 +65,7 @@ func (c *Client) StartEventSub() error {
 		return fmt.Errorf("failed to get eventsub subscriptions: %w", err)
 	}
 
-	var existingStreamOnlineSub, existingStreamOfflineSub bool
+	var existingStreamOnlineSubId, existingStreamOfflineSubId string
 	for _, sub := range subscriptions {
 		if sub.Type != "stream.online" && sub.Type != "stream.offline" {
 			continue
@@ -91,35 +91,42 @@ func (c *Client) StartEventSub() error {
 		}
 
 		if sub.Type == "stream.online" {
-			existingStreamOnlineSub = true
+			existingStreamOnlineSubId = sub.ID
 		}
 		if sub.Type == "stream.offline" {
-			existingStreamOfflineSub = true
+			existingStreamOfflineSubId = sub.ID
 		}
 	}
 
-	if !existingStreamOnlineSub {
-		err = c.apiClient.EventSubSubscribe("stream.online", esb.ConditionStreamOnline{
-			BroadcasterUserID: c.userID,
-		})
+	if existingStreamOnlineSubId != "" {
+		logging.Info("found existing stream.online subscription, deleting it", "subscription_id", existingStreamOnlineSubId)
+		err = c.apiClient.EventSubDeleteSubscription(existingStreamOnlineSubId)
 		if err != nil {
-			return fmt.Errorf("failed to subscribe to stream.online event: %w", err)
+			return fmt.Errorf("failed to delete existing stream.online subscription: %w", err)
 		}
-		logging.Info("subscribed to stream.online event")
-	} else {
-		logging.Info("already subscribed to stream.online event")
+	}
+	if existingStreamOfflineSubId != "" {
+		logging.Info("found existing stream.offline subscription, deleting it", "subscription_id", existingStreamOfflineSubId)
+		err = c.apiClient.EventSubDeleteSubscription(existingStreamOfflineSubId)
+		if err != nil {
+			return fmt.Errorf("failed to delete existing stream.offline subscription: %w", err)
+		}
 	}
 
-	if !existingStreamOfflineSub {
-		err = c.apiClient.EventSubSubscribe("stream.offline", esb.ConditionStreamOffline{
-			BroadcasterUserID: c.userID,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to subscribe to stream.offline event: %w", err)
-		}
-		logging.Info("subscribed to stream.offline event")
-	} else {
-		logging.Info("already subscribed to stream.offline event")
+	err = c.apiClient.EventSubSubscribe("stream.online", esb.ConditionStreamOnline{
+		BroadcasterUserID: c.userID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to stream.online event: %w", err)
 	}
+	logging.Info("subscribed to stream.online event")
+
+	err = c.apiClient.EventSubSubscribe("stream.offline", esb.ConditionStreamOffline{
+		BroadcasterUserID: c.userID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to stream.offline event: %w", err)
+	}
+	logging.Info("subscribed to stream.offline event")
 	return nil
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
-	"github.com/matthiasharzer/livebuffer/util/funcutils"
 )
 
 type recordingSession struct {
@@ -54,7 +53,10 @@ func (rs *recordingSession) Start(ctx context.Context) error {
 
 func (rs *recordingSession) Close() error {
 	if rs.buffer != nil {
-		funcutils.LogError(rs.buffer.Close, "failed to close video buffer")
+		err := rs.buffer.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close video file buffer: %w", err)
+		}
 	}
 	return nil
 }

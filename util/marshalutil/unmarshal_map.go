@@ -9,5 +9,5 @@ func UnmarshalAny[T any](data any, target T) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(b, &target)
+	return json.Unmarshal(b, target)
 }
