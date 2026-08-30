@@ -14,17 +14,17 @@ Create a `docker-compose.yml` file and start it with `docker compose up -d`. Mak
 
 ```yaml
 services:
-	livebuffer:
-		image: ghcr.io/matthiasharzer/livebuffer:latest
-		container_name: livebuffer
-		restart: unless-stopped
-		ports:
-			- "4000:4000"
-		environment:
-			TWITCH_CLIENT_ID: <your_client_id>
-			TWITCH_CLIENT_SECRET: <your_client_secret>
+  livebuffer:
+    image: ghcr.io/matthiasharzer/livebuffer:latest
+    container_name: livebuffer
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      TWITCH_CLIENT_ID: <your_client_id>
+      TWITCH_CLIENT_SECRET: <your_client_secret>
 
-		command: twitch run --port 4000 --username <twitch_username> --public-url <https://yourdomain.com>
+    command: twitch run --port 4000 --username <twitch_username> --public-url <https://yourdomain.com>
 ```
 > [!Note]
 > Make sure to replace `<your_client_id>`, `<your_client_secret>`, `<twitch_username>`, and `<https://yourdomain.com>` with your actual Twitch API credentials, the username of the livestream you want to buffer, and the public URL where the REST API will be accessible.
