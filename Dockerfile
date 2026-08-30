@@ -26,7 +26,7 @@ RUN go build  \
 FROM alpine:3.24
 
 RUN apk update && \
-		apk add --no-cache ffmpeg yt-dlp
+		apk add --no-cache ffmpeg streamlink
 
 COPY --from=build /go/bin/livebuffer /usr/local/bin/livebuffer
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api"
@@ -75,6 +76,9 @@ var Command = &cobra.Command{
 			bufferDirectory = tmpDir
 		}
 
+		if before, ok := strings.CutSuffix(liveBufferPublicURL, "/"); ok {
+			liveBufferPublicURL = before
+		}
 		eventSubURL := fmt.Sprintf("%s/api/v1/twitch-event-sub", liveBufferPublicURL)
 		eventSubSecret := stringutil.RandomString(32)
 		logging.Info("using eventsub callback URL", "url", eventSubURL)
@@ -95,11 +99,6 @@ var Command = &cobra.Command{
 			return err
 		}
 
-		err = twitchClient.StartEventSub()
-		if err != nil {
-			return fmt.Errorf("failed to start eventsub: %w", err)
-		}
-
 		director, err := buffer.NewDirector(maxStreams, bufferDirectory, username, twitchClient.OnlineChannel())
 		if err != nil {
 			return fmt.Errorf("failed to create director: %w", err)
@@ -107,6 +106,11 @@ var Command = &cobra.Command{
 		defer funcutils.LogError(director.Close, "failed to close director")
 
 		mux := api.GetMux(twitchAPI, director)
+
+		err = twitchClient.StartEventSub()
+		if err != nil {
+			return fmt.Errorf("failed to start eventsub: %w", err)
+		}
 
 		addr := fmt.Sprintf("%s:%d", httpHost, httpPort)
 		logging.Info("starting livebuffer server", "host", httpHost, "port", httpPort)

@@ -56,8 +56,11 @@ func (o *channel[T]) Unsubscribe(observer Observer[T]) {
 
 func (o *channel[T]) Publish(data T) {
 	o.mu.RLock()
-	defer o.mu.RUnlock()
-	for _, observer := range o.callbacks {
+	callbacks := make([]Observer[T], len(o.callbacks))
+	copy(callbacks, o.callbacks)
+	o.mu.RUnlock()
+
+	for _, observer := range callbacks {
 		observer.Update(data)
 	}
 }

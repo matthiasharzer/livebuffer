@@ -11,6 +11,7 @@ import (
 
 type Recorder struct {
 	username string
+	cmd      *exec.Cmd
 	mu       *sync.Mutex
 }
 
@@ -31,6 +32,8 @@ func NewRecorder(username string) (*Recorder, error) {
 }
 
 func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	streamlinkCmd := exec.CommandContext(ctx, "streamlink", "--stdout", "twitch.tv/"+r.username, "best")
 
 	reader, err := streamlinkCmd.StdoutPipe()
@@ -42,13 +45,20 @@ func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to start streamlink command: %w", err)
 	}
-
-	go func() {
-		err := streamlinkCmd.Wait()
-		if err != nil {
-			fmt.Printf("streamlink command exited with error: %v\n", err)
-		}
-	}()
+	r.cmd = streamlinkCmd
 
 	return reader, nil
+}
+
+func (r *Recorder) WaitFinished() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.cmd == nil {
+		return errors.New("streamlink command is not running")
+	}
+	err := r.cmd.Wait()
+	if err != nil {
+		return fmt.Errorf("streamlink command failed: %w", err)
+	}
+	return nil
 }

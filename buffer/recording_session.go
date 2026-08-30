@@ -43,6 +43,14 @@ func (rs *recordingSession) Start(ctx context.Context) error {
 		if err != nil {
 			logging.Error("failed to write to video store", "error", err)
 		}
+		err = rs.recorder.WaitFinished()
+		if err != nil {
+			logging.Error("streamlink command finished with error", "error", err)
+		}
+		err = rs.buffer.Close()
+		if err != nil {
+			logging.Error("failed to close video buffer", "error", err)
+		}
 	}()
 
 	return nil
