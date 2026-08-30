@@ -1,6 +1,6 @@
 FROM golang:1.27.0-alpine3.24 AS build
 
-ARG version
+ARG version=unknown
 
 RUN if [ -z "$version" ]; then \
 			echo "version is not set"; \
