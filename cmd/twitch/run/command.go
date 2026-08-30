@@ -9,22 +9,26 @@ import (
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
+	"github.com/matthiasharzer/livebuffer/util/fsutil"
+	"github.com/matthiasharzer/livebuffer/util/funcutils"
 	"github.com/matthiasharzer/livebuffer/util/stringutil"
 	"github.com/spf13/cobra"
 )
 
-var httpPort int
+var httpPort = 4000
 var httpHost string
 var username string
-var bufferDirectory string
+var bufferDirectoryArg string
 var liveBufferPublicURL string
+var maxStreams = 2
 
 func init() {
-	Command.Flags().IntVarP(&httpPort, "port", "p", 4000, "HTTP server port")
+	Command.Flags().IntVarP(&httpPort, "port", "p", httpPort, "HTTP server port (default: 4000)")
 	Command.Flags().StringVarP(&httpHost, "host", "", "", "HTTP server host (default: all interfaces)")
 	Command.Flags().StringVarP(&username, "username", "u", "", "Twitch username to buffer (required)")
-	Command.Flags().StringVarP(&bufferDirectory, "buffer-dir", "", ".buffer", "Directory to store live buffer segments")
+	Command.Flags().StringVarP(&bufferDirectoryArg, "buffer-dir", "", bufferDirectoryArg, "Directory to store live buffer segments (default: temporary directory)")
 	Command.Flags().StringVarP(&liveBufferPublicURL, "public-url", "", "", "Public URL for the live buffer (required)")
+	Command.Flags().IntVarP(&maxStreams, "max-streams", "", maxStreams, "Maximum number of concurrent streams to buffer (default: 2)")
 
 	err := Command.MarkFlagRequired("username")
 	if err != nil {
@@ -53,13 +57,22 @@ func getTwitchAPIClient(secret, eventSubCallbackURL string) (*twitch.APIClient, 
 var Command = &cobra.Command{
 	Use:   "run",
 	Short: "Run the livebuffer server for twitch",
+	Long:  "Run the livebuffer server for twitch, which buffers the live stream and provides a public URL for it. Requires TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET environment variables to be set.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if bufferDirectory == "" {
-			bufferDirectory = ".buffer"
-		}
-		err := os.MkdirAll(bufferDirectory, 0777)
-		if err != nil {
-			return err
+		var bufferDirectory string
+		if bufferDirectoryArg != "" {
+			bufferDirectory = bufferDirectoryArg
+			err := os.MkdirAll(bufferDirectory, 0755)
+			if err != nil {
+				return fmt.Errorf("failed to create buffer directory: %w", err)
+			}
+		} else {
+			tmpDir, cleanup, err := fsutil.TemporaryDirectory()
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+			bufferDirectory = tmpDir
 		}
 
 		eventSubURL := fmt.Sprintf("%s/api/v1/twitch-event-sub", liveBufferPublicURL)
@@ -67,6 +80,10 @@ var Command = &cobra.Command{
 		logging.Info("using eventsub callback URL", "url", eventSubURL, "secret", eventSubSecret)
 
 		twitchAPI, err := getTwitchAPIClient(eventSubSecret, eventSubURL)
+		if err != nil {
+			return err
+		}
+		defer funcutils.LogError(twitchAPI.Close, "failed to close twitch API client")
 
 		userID, err := twitchAPI.GetUserID(username)
 		if err != nil {
@@ -78,12 +95,11 @@ var Command = &cobra.Command{
 			return err
 		}
 
-		director, err := buffer.NewDirector(2, bufferDirectory, username, twitchClient.OnlineChannel())
+		director, err := buffer.NewDirector(maxStreams, bufferDirectory, username, twitchClient.OnlineChannel())
 		if err != nil {
 			return err
 		}
-
-		_ = director
+		defer funcutils.LogError(director.Close, "failed to close director")
 
 		mux := api.GetMux(twitchAPI, director)
 

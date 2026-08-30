@@ -11,7 +11,9 @@ import (
 )
 
 var rootCommand = &cobra.Command{
-	Use: "livebuffer",
+	Use:   "livebuffer",
+	Short: "livebuffer is a tool to buffer live streams from Twitch and provide a public URL to access the buffered content",
+	Long:  "livebuffer is a tool to buffer live streams from Twitch and provide a public URL to access the buffered content. It allows you to specify a Twitch username, and it will automatically record the live stream when the user goes live. The recorded segments are stored in a specified directory, and you can access the buffered content through a public URL",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		return cmd.Help()
 	},
