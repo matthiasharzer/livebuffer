@@ -7,9 +7,10 @@ import (
 	"io"
 	"net/http"
 
-	esf "github.com/dnsge/twitch-eventsub-framework"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
+	esb "github.com/matthiasharzer/twitch-eventsub-bindings"
+	esf "github.com/matthiasharzer/twitch-eventsub-framework"
 )
 
 const twitchAPIBaseURL = "https://api.twitch.tv/helix"
@@ -21,8 +22,7 @@ type APIClient struct {
 	subClient      *esf.SubClient
 	eventSubURL    string
 	callbackSecret string
-	clientID       string
-	clientSecret   string
+	credentials    Credentials
 
 	subContext    context.Context
 	contextCancel context.CancelFunc
@@ -30,15 +30,15 @@ type APIClient struct {
 
 func NewAPIClient(eventSubURL, eventSubSecret, clientID, clientSecret string) (*APIClient, error) {
 	subHandler := esf.NewSubHandler(true, []byte(eventSubSecret))
-	subClient := esf.NewSubClient(esf.NewStaticCredentials(clientID, clientSecret))
+	credentials := NewRollingCredentials(clientID, clientSecret)
+	subClient := esf.NewSubClient(credentials)
 
 	subContext, cancel := context.WithCancel(context.Background())
 
 	client := &APIClient{
 		EventSubHandler: subHandler,
 
-		clientID:       clientID,
-		clientSecret:   clientSecret,
+		credentials:    credentials,
 		subClient:      subClient,
 		eventSubURL:    eventSubURL,
 		subContext:     subContext,
@@ -63,32 +63,17 @@ func (c *APIClient) EventSubSubscribe(eventType string, condition any) error {
 	return nil
 }
 
-func (c *APIClient) EventSubHTTPHandler() http.Handler {
-	return c.EventSubHandler
+func (c *APIClient) EventSubGetSubscriptions() ([]esb.Subscription, error) {
+	subscriptions, err := c.subClient.GetSubscriptions(c.subContext, esf.StatusAny)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get subscriptions: %w", err)
+	}
+
+	return subscriptions.Data, nil
 }
 
-func (c *APIClient) getAccessToken() (string, error) {
-	url := fmt.Sprintf("https://id.twitch.tv/oauth2/token?client_id=%s&client_secret=%s&grant_type=client_credentials", c.clientID, c.clientSecret)
-	resp, err := http.Post(url, "application/json", nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to get access token: %w", err)
-	}
-	defer funcutils.LogError(resp.Body.Close, "failed to close response body")
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
-	}
-
-	var result struct {
-		AccessToken string `json:"access_token"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return result.AccessToken, nil
+func (c *APIClient) EventSubHTTPHandler() http.Handler {
+	return c.EventSubHandler
 }
 
 func (c *APIClient) GetUserID(username string) (string, error) {
@@ -100,12 +85,17 @@ func (c *APIClient) GetUserID(username string) (string, error) {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	accessToken, err := c.getAccessToken()
+	accessToken, err := c.credentials.AppToken()
 	if err != nil {
 		return "", fmt.Errorf("failed to get access token: %w", err)
 	}
 
-	req.Header.Set("Client-Id", c.clientID)
+	clientID, err := c.credentials.ClientID()
+	if err != nil {
+		return "", fmt.Errorf("failed to get client ID: %w", err)
+	}
+
+	req.Header.Set("Client-Id", clientID)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
 	resp, err := http.DefaultClient.Do(req)

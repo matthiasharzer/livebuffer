@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	esb "github.com/dnsge/twitch-eventsub-bindings"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
+	"github.com/matthiasharzer/livebuffer/util/marshalutil"
+	esb "github.com/matthiasharzer/twitch-eventsub-bindings"
 )
 
 type StreamOnlineState struct {
@@ -59,18 +60,66 @@ func (c *Client) OnlineChannel() observer.ReadonlyChannel[StreamOnlineState] {
 }
 
 func (c *Client) StartEventSub() error {
-	err := c.apiClient.EventSubSubscribe("stream.online", esb.ConditionStreamOnline{
-		BroadcasterUserID: c.userID,
-	})
+	subscriptions, err := c.apiClient.EventSubGetSubscriptions()
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to stream.online event: %w", err)
+		return fmt.Errorf("failed to get eventsub subscriptions: %w", err)
 	}
 
-	err = c.apiClient.EventSubSubscribe("stream.offline", esb.ConditionStreamOffline{
-		BroadcasterUserID: c.userID,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to stream.offline event: %w", err)
+	var existingStreamOnlineSub, existingStreamOfflineSub bool
+	for _, sub := range subscriptions {
+		if sub.Type != "stream.online" && sub.Type != "stream.offline" {
+			continue
+		}
+
+		// stream.online and stream.offline have the same condition structure, so we can unmarshal it into a common struct
+		condition := struct {
+			BroadcasterUserID string `json:"broadcaster_user_id"`
+		}{}
+
+		err = marshalutil.UnmarshalAny(sub.Condition, &condition)
+		if err != nil {
+			logging.Warn("failed to unmarshal condition for subscription", "error", err)
+			continue
+		}
+		isWebhook := sub.Transport.Method == "webhook"
+		isSameBroadcaster := condition.BroadcasterUserID == c.userID
+		isSameCallback := sub.Transport.Callback == c.apiClient.eventSubURL
+
+		subscriptionExists := isWebhook && isSameBroadcaster && isSameCallback
+		if !subscriptionExists {
+			continue
+		}
+
+		if sub.Type == "stream.online" {
+			existingStreamOnlineSub = true
+		}
+		if sub.Type == "stream.offline" {
+			existingStreamOfflineSub = true
+		}
+	}
+
+	if !existingStreamOnlineSub {
+		err = c.apiClient.EventSubSubscribe("stream.online", esb.ConditionStreamOnline{
+			BroadcasterUserID: c.userID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to subscribe to stream.online event: %w", err)
+		}
+		logging.Info("subscribed to stream.online event")
+	} else {
+		logging.Info("already subscribed to stream.online event")
+	}
+
+	if !existingStreamOfflineSub {
+		err = c.apiClient.EventSubSubscribe("stream.offline", esb.ConditionStreamOffline{
+			BroadcasterUserID: c.userID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to subscribe to stream.offline event: %w", err)
+		}
+		logging.Info("subscribed to stream.offline event")
+	} else {
+		logging.Info("already subscribed to stream.offline event")
 	}
 	return nil
 }

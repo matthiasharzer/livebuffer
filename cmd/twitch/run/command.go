@@ -75,6 +75,7 @@ var Command = &cobra.Command{
 			defer cleanup()
 			bufferDirectory = tmpDir
 		}
+		logging.Info("using buffer directory", "dir", bufferDirectory)
 
 		if before, ok := strings.CutSuffix(liveBufferPublicURL, "/"); ok {
 			liveBufferPublicURL = before
