@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/matthiasharzer/livebuffer/cmd/run"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch"
 	"github.com/matthiasharzer/livebuffer/cmd/version"
 
@@ -20,7 +19,6 @@ var rootCommand = &cobra.Command{
 
 func init() {
 	rootCommand.AddCommand(version.Command)
-	rootCommand.AddCommand(run.Command)
 	rootCommand.AddCommand(twitch.Command)
 }
 
