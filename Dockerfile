@@ -1,4 +1,4 @@
-FROM golang:1.27.0-alpine3.23 AS build
+FROM golang:1.27.0-alpine3.24 AS build
 
 ARG version
 
@@ -31,8 +31,6 @@ RUN apk update && \
 COPY --from=build /go/bin/livebuffer /usr/local/bin/livebuffer
 
 WORKDIR /var/lib/livebuffer
-
-EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/livebuffer"]
 
