@@ -1,6 +1,6 @@
-FROM golang:1.27.0-alpine3.23 AS build
+FROM golang:1.27.0-alpine3.24 AS build
 
-ARG version
+ARG version=unknown
 
 RUN if [ -z "$version" ]; then \
 			echo "version is not set"; \
@@ -26,13 +26,11 @@ RUN go build  \
 FROM alpine:3.24
 
 RUN apk update && \
-		apk add --no-cache ffmpeg yt-dlp
+		apk add --no-cache ffmpeg streamlink
 
 COPY --from=build /go/bin/livebuffer /usr/local/bin/livebuffer
 
 WORKDIR /var/lib/livebuffer
-
-EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/livebuffer"]
 
