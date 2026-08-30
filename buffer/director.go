@@ -84,8 +84,13 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string, on
 		return nil, fmt.Errorf("failed to initially cleanup buffer files: %w", err)
 	}
 
-	onlineChannel.Subscribe(director.onlineStateChanged)
+	onlineChannel.Subscribe(director)
 	return director, nil
+}
+
+func (d *Director) Update(state twitch.StreamOnlineState) {
+	// Update is the Observer interface method, we just forward the state to the internal handler
+	d.onlineStateChanged(state)
 }
 
 func (d *Director) cleanupFiles() error {
@@ -178,7 +183,7 @@ func (d *Director) startRecording() error {
 	ctx, cancel := d.createRecordingContext()
 	d.cancelRecording = cancel
 
-	bufferFilePath := filepath.Join(d.bufferDirectory, fmt.Sprintf("%s_%d.m3u8", d.username, time.Now().Unix()))
+	bufferFilePath := filepath.Join(d.bufferDirectory, fmt.Sprintf("%s_%d.ts", d.username, time.Now().Unix()))
 	session, err := newRecordingSession(d.username, bufferFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to create recording session: %w", err)
@@ -210,16 +215,31 @@ func (d *Director) GetStreams() ([]string, error) {
 	return streams, nil
 }
 
+func (d *Director) resolveStreamPath(streamName string) (string, error) {
+	if streamName == "" || streamName == "." || streamName == ".." || filepath.Base(streamName) != streamName {
+		return "", fmt.Errorf("invalid stream_id")
+	}
+
+	streamPath := filepath.Join(d.bufferDirectory, streamName+".ts")
+	_, err := os.Stat(streamPath)
+	if os.IsNotExist(err) {
+		return "", nil
+	} else if err != nil {
+		return "", fmt.Errorf("failed to stat stream %s: %w", streamName, err)
+	}
+	return streamPath, nil
+}
+
 func (d *Director) GetStream(streamName string) (io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamPath := filepath.Join(d.bufferDirectory, streamName+".m3u8")
-	_, err := os.Stat(streamPath)
-	if os.IsNotExist(err) {
+	streamPath, err := d.resolveStreamPath(streamName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve stream path: %w", err)
+	}
+	if streamPath == "" {
 		return nil, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to stat stream %s: %w", streamName, err)
 	}
 
 	if d.session != nil && d.session.FilePath() == streamPath {
@@ -237,12 +257,12 @@ func (d *Director) GetClip(streamName string, startTime, endTime time.Duration) 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamPath := filepath.Join(d.bufferDirectory, streamName+".m3u8")
-	_, err := os.Stat(streamPath)
-	if os.IsNotExist(err) {
+	streamPath, err := d.resolveStreamPath(streamName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve stream path: %w", err)
+	}
+	if streamPath == "" {
 		return nil, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to stat stream %s: %w", streamName, err)
 	}
 
 	startStr := fmt.Sprintf("%.3f", startTime.Seconds())
@@ -278,6 +298,6 @@ func (d *Director) GetClip(streamName string, startTime, endTime time.Duration) 
 func (d *Director) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.onlineChannel.Unsubscribe(d.onlineStateChanged)
+	d.onlineChannel.Unsubscribe(d)
 	return d.stopRecordingStop()
 }

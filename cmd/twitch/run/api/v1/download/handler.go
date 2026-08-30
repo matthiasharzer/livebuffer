@@ -6,6 +6,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/logging"
+	"github.com/matthiasharzer/livebuffer/util/funcutils"
 )
 
 func Handler(directory *buffer.Director) http.HandlerFunc {
@@ -26,6 +27,7 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			http.Error(w, "stream not found", http.StatusNotFound)
 			return
 		}
+		defer funcutils.LogError(stream.Close, "failed to close stream")
 
 		w.Header().Set("Content-Type", "video/mp4")
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+streamID+".ts\"")

@@ -43,5 +43,12 @@ func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 		return nil, fmt.Errorf("failed to start streamlink command: %w", err)
 	}
 
+	go func() {
+		err := streamlinkCmd.Wait()
+		if err != nil {
+			fmt.Printf("streamlink command exited with error: %v\n", err)
+		}
+	}()
+
 	return reader, nil
 }

@@ -77,17 +77,17 @@ var Command = &cobra.Command{
 
 		eventSubURL := fmt.Sprintf("%s/api/v1/twitch-event-sub", liveBufferPublicURL)
 		eventSubSecret := stringutil.RandomString(32)
-		logging.Info("using eventsub callback URL", "url", eventSubURL, "secret", eventSubSecret)
+		logging.Info("using eventsub callback URL", "url", eventSubURL)
 
 		twitchAPI, err := getTwitchAPIClient(eventSubSecret, eventSubURL)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create twitch API client: %w", err)
 		}
 		defer funcutils.LogError(twitchAPI.Close, "failed to close twitch API client")
 
 		userID, err := twitchAPI.GetUserID(username)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get user ID for username %s: %w", username, err)
 		}
 
 		twitchClient, err := twitch.NewClient(twitchAPI, userID)
@@ -95,9 +95,14 @@ var Command = &cobra.Command{
 			return err
 		}
 
+		err = twitchClient.StartEventSub()
+		if err != nil {
+			return fmt.Errorf("failed to start eventsub: %w", err)
+		}
+
 		director, err := buffer.NewDirector(maxStreams, bufferDirectory, username, twitchClient.OnlineChannel())
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create director: %w", err)
 		}
 		defer funcutils.LogError(director.Close, "failed to close director")
 

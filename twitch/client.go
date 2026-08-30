@@ -65,5 +65,12 @@ func (c *Client) StartEventSub() error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to stream.online event: %w", err)
 	}
+
+	err = c.apiClient.EventSubSubscribe("stream.offline", esb.ConditionStreamOffline{
+		BroadcasterUserID: c.userID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to stream.offline event: %w", err)
+	}
 	return nil
 }
