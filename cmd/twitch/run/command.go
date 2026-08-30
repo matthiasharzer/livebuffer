@@ -22,14 +22,16 @@ var username string
 var bufferDirectoryArg string
 var liveBufferPublicURL string
 var maxStreams = 2
+var eventSubSecretArg string
 
 func init() {
-	Command.Flags().IntVarP(&httpPort, "port", "p", httpPort, "HTTP server port (default: 4000)")
+	Command.Flags().IntVarP(&httpPort, "port", "p", httpPort, "HTTP server port")
 	Command.Flags().StringVarP(&httpHost, "host", "", "", "HTTP server host (default: all interfaces)")
 	Command.Flags().StringVarP(&username, "username", "u", "", "Twitch username to buffer (required)")
 	Command.Flags().StringVarP(&bufferDirectoryArg, "buffer-dir", "", bufferDirectoryArg, "Directory to store live buffer segments (default: temporary directory)")
 	Command.Flags().StringVarP(&liveBufferPublicURL, "public-url", "", "", "Public URL for the live buffer (required)")
-	Command.Flags().IntVarP(&maxStreams, "max-streams", "", maxStreams, "Maximum number of concurrent streams to buffer (default: 2)")
+	Command.Flags().IntVarP(&maxStreams, "max-streams", "", maxStreams, "Maximum number of concurrent streams to buffer")
+	Command.Flags().StringVarP(&eventSubSecretArg, "eventsub-secret", "", eventSubSecretArg, "Secret for Twitch EventSub (10-100 chars) (default: random string)")
 
 	err := Command.MarkFlagRequired("username")
 	if err != nil {
@@ -59,6 +61,20 @@ var Command = &cobra.Command{
 	Use:   "run",
 	Short: "Run the livebuffer server for twitch",
 	Long:  "Run the livebuffer server for twitch, which buffers the live stream and provides a public URL for it. Requires TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET environment variables to be set.",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if eventSubSecretArg != "" {
+			if len(eventSubSecretArg) < 10 || len(eventSubSecretArg) > 100 {
+				return fmt.Errorf("eventsub-secret must be between 10 and 100 characters")
+			}
+			// Only ASCII characters are allowed in the eventsub-secret
+			for _, c := range eventSubSecretArg {
+				if c > 127 {
+					return fmt.Errorf("eventsub-secret must only contain ASCII characters")
+				}
+			}
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var bufferDirectory string
 		if bufferDirectoryArg != "" {
@@ -77,11 +93,18 @@ var Command = &cobra.Command{
 		}
 		logging.Info("using buffer directory", "dir", bufferDirectory)
 
+		var eventSubSecret string
+		if eventSubSecretArg != "" {
+			eventSubSecret = eventSubSecretArg
+		} else {
+			logging.Info("no eventsub-secret provided, generating random secret")
+			eventSubSecret = stringutil.RandomString(32)
+		}
+
 		if before, ok := strings.CutSuffix(liveBufferPublicURL, "/"); ok {
 			liveBufferPublicURL = before
 		}
 		eventSubURL := fmt.Sprintf("%s/api/v1/twitch-event-sub", liveBufferPublicURL)
-		eventSubSecret := stringutil.RandomString(32)
 		logging.Info("using eventsub callback URL", "url", eventSubURL)
 
 		twitchAPI, err := getTwitchAPIClient(eventSubSecret, eventSubURL)

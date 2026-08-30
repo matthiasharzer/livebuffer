@@ -1,3 +1,4 @@
 .buffer
 .run
 build/
+.env
