@@ -9,15 +9,31 @@ import (
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
+	"github.com/matthiasharzer/livebuffer/util/stringutil"
 	"github.com/spf13/cobra"
 )
 
 var httpPort int
 var httpHost string
+var username string
+var bufferDirectory string
+var liveBufferPublicURL string
 
 func init() {
 	Command.Flags().IntVarP(&httpPort, "port", "p", 4000, "HTTP server port")
 	Command.Flags().StringVarP(&httpHost, "host", "", "", "HTTP server host (default: all interfaces)")
+	Command.Flags().StringVarP(&username, "username", "u", "", "Twitch username to buffer (required)")
+	Command.Flags().StringVarP(&bufferDirectory, "buffer-dir", "", ".buffer", "Directory to store live buffer segments")
+	Command.Flags().StringVarP(&liveBufferPublicURL, "public-url", "", "", "Public URL for the live buffer (required)")
+
+	err := Command.MarkFlagRequired("username")
+	if err != nil {
+		panic(err)
+	}
+	err = Command.MarkFlagRequired("public-url")
+	if err != nil {
+		panic(err)
+	}
 }
 
 func getTwitchAPIClient(secret, eventSubCallbackURL string) (*twitch.APIClient, error) {
@@ -38,15 +54,19 @@ var Command = &cobra.Command{
 	Use:   "run",
 	Short: "Run the livebuffer server for twitch",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		username := "pokemonxp"
-
-		bufferDirectory := ".buffer"
+		if bufferDirectory == "" {
+			bufferDirectory = ".buffer"
+		}
 		err := os.MkdirAll(bufferDirectory, 0777)
 		if err != nil {
 			return err
 		}
 
-		twitchAPI, err := getTwitchAPIClient("secret-dev", "http://localhost:4000/api/v1/twitch-event-sub")
+		eventSubURL := fmt.Sprintf("%s/api/v1/twitch-event-sub", liveBufferPublicURL)
+		eventSubSecret := stringutil.RandomString(32)
+		logging.Info("using eventsub callback URL", "url", eventSubURL, "secret", eventSubSecret)
+
+		twitchAPI, err := getTwitchAPIClient(eventSubSecret, eventSubURL)
 
 		userID, err := twitchAPI.GetUserID(username)
 		if err != nil {
@@ -75,15 +95,5 @@ var Command = &cobra.Command{
 		)
 
 		return fmt.Errorf("failed to start server: %w", err)
-
-		//director.WentLive()
-		//defer director.Close()
-		//
-		//fmt.Printf("Waiting for streams to be available...\n")
-		//
-		//time.Sleep(10 * time.Second)
-		//
-
-		return nil
 	},
 }

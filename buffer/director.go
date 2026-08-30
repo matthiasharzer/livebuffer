@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -16,6 +17,31 @@ import (
 	"github.com/matthiasharzer/livebuffer/util/fsutil"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 )
+
+func isFfmpegInstalled() bool {
+	command := exec.Command("ffmpeg", "-h")
+	err := command.Run()
+	return err == nil
+}
+
+type ffmpegReadCloser struct {
+	io.ReadCloser
+	cmd *exec.Cmd
+}
+
+func (f *ffmpegReadCloser) Close() error {
+	err := f.ReadCloser.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close ffmpeg stdout pipe: %w", err)
+	}
+
+	err = f.cmd.Wait()
+	if err != nil {
+		return fmt.Errorf("ffmpeg command failed: %w", err)
+	}
+
+	return nil
+}
 
 // Director manages the livebuffer for twitch streams
 type Director struct {
@@ -32,6 +58,10 @@ type Director struct {
 func NewDirector(maxStreams int, bufferBaseDirectory string, username string, onlineChannel observer.ReadonlyChannel[twitch.StreamOnlineState]) (*Director, error) {
 	if maxStreams <= 0 {
 		return nil, errors.New("maxStreams must be greater than 0")
+	}
+
+	if !isFfmpegInstalled() {
+		return nil, errors.New("ffmpeg is not installed. Please install ffmpeg to use the director")
 	}
 
 	bufferDir := filepath.Join(bufferBaseDirectory, username)
@@ -201,6 +231,48 @@ func (d *Director) GetStream(streamName string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("failed to open stream %s: %w", streamName, err)
 	}
 	return f, nil
+}
+
+func (d *Director) GetClip(streamName string, startTime, endTime time.Duration) (io.ReadCloser, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	streamPath := filepath.Join(d.bufferDirectory, streamName+".m3u8")
+	_, err := os.Stat(streamPath)
+	if os.IsNotExist(err) {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to stat stream %s: %w", streamName, err)
+	}
+
+	startStr := fmt.Sprintf("%.3f", startTime.Seconds())
+	durationStr := fmt.Sprintf("%.3f", endTime.Seconds()-startTime.Seconds())
+
+	args := []string{
+		"-y",
+		"-i", streamPath,
+		"-ss", startStr,
+		"-t", durationStr,
+		"-c", "copy",
+		"-f", "mpegts",
+		"pipe:1",
+	}
+
+	cmd := exec.Command("ffmpeg", args...)
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdout pipe for ffmpeg: %w", err)
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
+	}
+
+	return &ffmpegReadCloser{
+		ReadCloser: stdoutPipe,
+		cmd:        cmd,
+	}, nil
 }
 
 func (d *Director) Close() error {

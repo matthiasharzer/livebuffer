@@ -34,7 +34,7 @@ func NewClient(apiClient *APIClient, userID string) (*Client, error) {
 	return client, nil
 }
 
-func (c *Client) handleStreamOnline(h *esb.ResponseHeaders, event *esb.EventStreamOnline) {
+func (c *Client) handleStreamOnline(_ *esb.ResponseHeaders, event *esb.EventStreamOnline) {
 	logging.Info("stream is online:", "username", event.BroadcasterUserName)
 	startedAt, err := time.Parse(time.RFC3339, event.StartedAt)
 	if err != nil {
@@ -47,7 +47,7 @@ func (c *Client) handleStreamOnline(h *esb.ResponseHeaders, event *esb.EventStre
 	})
 }
 
-func (c *Client) handleStreamOffline(h *esb.ResponseHeaders, event *esb.EventStreamOffline) {
+func (c *Client) handleStreamOffline(_ *esb.ResponseHeaders, event *esb.EventStreamOffline) {
 	logging.Info("stream is offline:", "username", event.BroadcasterUserName)
 	c.onlineChannel.Publish(StreamOnlineState{
 		IsOnline: false,

@@ -1,6 +1,10 @@
 package fsutil
 
-import "os"
+import (
+	"os"
+
+	"github.com/matthiasharzer/livebuffer/util/funcutils"
+)
 
 type TempFileOptions struct {
 	FileEnding string
@@ -34,7 +38,7 @@ func TemporaryFile(options ...TempFileOptions) (string, func(), error) {
 	if err != nil {
 		return "", nil, err
 	}
-	defer file.Close()
+	defer funcutils.LogError(file.Close, "failed to close temporary file")
 
 	cleanup := func() {
 		_ = os.Remove(file.Name())
