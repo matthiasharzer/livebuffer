@@ -117,6 +117,7 @@ func (c *Client) getStream(id string) (*helix.Stream, error) {
 
 func (c *Client) StartEventSub() error {
 	if c.unsubscribeEventSub != nil {
+		c.unsubscribeEventSub = nil
 		c.unsubscribeEventSub()
 	}
 
@@ -138,6 +139,7 @@ func (c *Client) OnlineChannel() observer.ReadonlyChannel[StreamOnlineState] {
 
 func (c *Client) Close() error {
 	if c.unsubscribeEventSub != nil {
+		c.unsubscribeEventSub = nil
 		c.unsubscribeEventSub()
 	}
 	return nil
