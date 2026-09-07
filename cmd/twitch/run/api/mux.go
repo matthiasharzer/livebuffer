@@ -7,10 +7,10 @@ import (
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/clip"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/download"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/list"
-	"github.com/matthiasharzer/livebuffer/twitchng"
+	"github.com/matthiasharzer/livebuffer/twitch"
 )
 
-func GetMux(twitchAPI *twitchng.Client, director *buffer.Director) *http.ServeMux {
+func GetMux(twitchAPI *twitch.Client, director *buffer.Director) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

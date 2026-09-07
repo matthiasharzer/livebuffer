@@ -10,7 +10,7 @@ import (
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api"
 	"github.com/matthiasharzer/livebuffer/logging"
-	"github.com/matthiasharzer/livebuffer/twitchng"
+	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/util/fsutil"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 	"github.com/matthiasharzer/livebuffer/util/stringutil"
@@ -44,7 +44,7 @@ func init() {
 	}
 }
 
-func getTwitchClient(userName, eventSubSecret string, eventSubCallbackURL url.URL) (*twitchng.Client, error) {
+func getTwitchClient(userName, eventSubSecret string, eventSubCallbackURL url.URL) (*twitch.Client, error) {
 	clientID := os.Getenv("TWITCH_CLIENT_ID")
 	if clientID == "" {
 		return nil, fmt.Errorf("TWITCH_CLIENT_ID is not set")
@@ -55,7 +55,7 @@ func getTwitchClient(userName, eventSubSecret string, eventSubCallbackURL url.UR
 		return nil, fmt.Errorf("TWITCH_CLIENT_SECRET is not set")
 	}
 
-	return twitchng.NewClient(clientID, clientSecret, userName, eventSubCallbackURL, eventSubSecret)
+	return twitch.NewClient(clientID, clientSecret, userName, eventSubCallbackURL, eventSubSecret)
 }
 
 var Command = &cobra.Command{

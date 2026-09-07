@@ -1,4 +1,4 @@
-package twitchng
+package twitch
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
-	"github.com/matthiasharzer/livebuffer/twitchng/eventsub"
+	"github.com/matthiasharzer/livebuffer/twitch/eventsub"
 	"github.com/nicklaw5/helix/v2"
 )
 

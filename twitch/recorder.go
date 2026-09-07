@@ -1,4 +1,4 @@
-package twitchng
+package twitch
 
 import (
 	"context"
