@@ -75,7 +75,6 @@ func (c *Client) isMatchingEventSubSubscription(sub helix.EventSubSubscription, 
 	if sub.Condition.BroadcasterUserID != c.userID {
 		return false
 	}
-	//TODO: check if secret!!
 	if sub.Transport.Callback != c.evenSubURL.String() {
 		return false
 	}
