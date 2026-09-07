@@ -32,7 +32,7 @@ func (c *Client) HTTPHandler() http.HandlerFunc {
 		defer funcutils.LogError(r.Body.Close, "failed to close request body")
 
 		if !helix.VerifyEventSubNotification(c.eventSubSecret, r.Header, string(body)) {
-			logging.Error("failed to verify eventsub notification", "error", err)
+			logging.Error("failed to verify eventsub notification")
 			http.Error(w, "failed to verify eventsub notification", http.StatusBadRequest)
 			return
 		}
@@ -51,7 +51,7 @@ func (c *Client) HTTPHandler() http.HandlerFunc {
 			return
 		}
 
-		c.events.Publish(notification)
+		go c.events.Publish(notification)
 		w.WriteHeader(http.StatusOK)
 	}
 }

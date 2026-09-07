@@ -58,5 +58,5 @@ func (o *channel[T]) Publish(data T) {
 func (o *channel[T]) Clear() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	o.callbacks = nil
+	o.callbacks = make(map[uint64]func(T))
 }

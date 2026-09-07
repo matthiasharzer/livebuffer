@@ -48,6 +48,9 @@ func NewClient(clientID, clientSecret, userName string, evenSubURL url.URL, even
 	if err != nil {
 		return nil, fmt.Errorf("failed to request app access token: %w", err)
 	}
+	if accessTokenResponse.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to request app access token: status code %d", accessTokenResponse.StatusCode)
+	}
 	helixClient.SetAppAccessToken(accessTokenResponse.Data.AccessToken)
 
 	response, err := helixClient.GetUsers(&helix.UsersParams{
@@ -55,6 +58,9 @@ func NewClient(clientID, clientSecret, userName string, evenSubURL url.URL, even
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get user: status code %d", response.StatusCode)
 	}
 	if len(response.Data.Users) == 0 {
 		return nil, fmt.Errorf("user '%s' not found", userName)
@@ -87,19 +93,22 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 		}
 		stream, err := c.getCurrentUserStream()
 		if err != nil {
-			logging.Error("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
-			return
+			logging.Warn("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
 		}
 		if stream == nil {
-			logging.Info("stream not found for event", "type", notification.Subscription.Type)
-			return
+			logging.Warn("stream not found for event", "type", notification.Subscription.Type)
+		}
+
+		streamTitle := "unknown"
+		if stream != nil {
+			streamTitle = stream.Title
 		}
 
 		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "title", stream.Title, "started_at", payload.StartedAt)
 		c.onlineChannel.Publish(StreamOnlineState{
 			IsOnline:            notification.Subscription.Type == "stream.online",
 			BroadcasterUserName: payload.BroadcasterUserName,
-			Title:               stream.Title,
+			Title:               streamTitle,
 			StartedAt:           &payload.StartedAt,
 		})
 	default:
@@ -114,6 +123,9 @@ func (c *Client) getCurrentUserStream() (*helix.Stream, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get stream: %w", err)
 	}
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get stream: status code %d", response.StatusCode)
+	}
 	if len(response.Data.Streams) == 0 {
 		return nil, nil
 	}
@@ -122,8 +134,8 @@ func (c *Client) getCurrentUserStream() (*helix.Stream, error) {
 
 func (c *Client) StartEventSub() error {
 	if c.unsubscribeEventSub != nil {
-		c.unsubscribeEventSub = nil
 		c.unsubscribeEventSub()
+		c.unsubscribeEventSub = nil
 	}
 
 	err := c.eventSubClient.Start()
@@ -144,8 +156,8 @@ func (c *Client) OnlineChannel() observer.ReadonlyChannel[StreamOnlineState] {
 
 func (c *Client) Close() error {
 	if c.unsubscribeEventSub != nil {
-		c.unsubscribeEventSub = nil
 		c.unsubscribeEventSub()
+		c.unsubscribeEventSub = nil
 	}
 	return nil
 }

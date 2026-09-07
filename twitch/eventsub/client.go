@@ -2,6 +2,7 @@ package eventsub
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"slices"
 
@@ -50,6 +51,9 @@ func (c *Client) getExistingEventSubSubscriptions() ([]helix.EventSubSubscriptio
 		if err != nil {
 			return nil, err
 		}
+		if response.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("failed to get eventsub subscriptions: status code %d", response.StatusCode)
+		}
 
 		subscriptions = append(subscriptions, response.Data.EventSubSubscriptions...)
 
@@ -82,7 +86,7 @@ func (c *Client) isMatchingEventSubSubscription(sub helix.EventSubSubscription, 
 }
 
 func (c *Client) createEventSubSubscription(eventType string) error {
-	_, err := c.helixClient.CreateEventSubSubscription(&helix.EventSubSubscription{
+	response, err := c.helixClient.CreateEventSubSubscription(&helix.EventSubSubscription{
 		Transport: helix.EventSubTransport{
 			Method:   "webhook",
 			Callback: c.evenSubURL.String(),
@@ -96,6 +100,9 @@ func (c *Client) createEventSubSubscription(eventType string) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create eventsub subscription for %s: %w", eventType, err)
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return fmt.Errorf("failed to create eventsub subscription for %s: status code %d", eventType, response.StatusCode)
 	}
 	return nil
 }
@@ -112,9 +119,12 @@ func (c *Client) Start() error {
 		}
 
 		logging.Info("removing existing subscription", "type", sub.Type, "id", sub.ID)
-		_, err = c.helixClient.RemoveEventSubSubscription(sub.ID)
+		response, err := c.helixClient.RemoveEventSubSubscription(sub.ID)
 		if err != nil {
 			return fmt.Errorf("failed to remove existing subscription: %w", err)
+		}
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			return fmt.Errorf("failed to remove existing subscription: status code %d", response.StatusCode)
 		}
 	}
 
