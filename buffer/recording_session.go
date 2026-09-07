@@ -6,16 +6,16 @@ import (
 	"io"
 
 	"github.com/matthiasharzer/livebuffer/logging"
-	"github.com/matthiasharzer/livebuffer/twitch"
+	"github.com/matthiasharzer/livebuffer/twitchng"
 )
 
 type recordingSession struct {
-	recorder *twitch.Recorder
+	recorder *twitchng.Recorder
 	buffer   *VideoFileBuffer
 }
 
 func newRecordingSession(username string, bufferFilePath string) (*recordingSession, error) {
-	recorder, err := twitch.NewRecorder(username)
+	recorder, err := twitchng.NewRecorder(username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create twitch recorder: %w", err)
 	}

@@ -13,7 +13,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
-	"github.com/matthiasharzer/livebuffer/twitch"
+	"github.com/matthiasharzer/livebuffer/twitchng"
 	"github.com/matthiasharzer/livebuffer/util/fsutil"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 )
@@ -48,7 +48,7 @@ type Director struct {
 	maxStreams               int
 	bufferDirectory          string
 	username                 string
-	onlineChannel            observer.ReadonlyChannel[twitch.StreamOnlineState]
+	onlineChannel            observer.ReadonlyChannel[twitchng.StreamOnlineState]
 	unsubscribeOnlineChannel observer.UnsubscribeFunc
 	session                  *recordingSession
 	cancelRecording          func()
@@ -56,7 +56,7 @@ type Director struct {
 	mu sync.Mutex
 }
 
-func NewDirector(maxStreams int, bufferBaseDirectory string, username string, onlineChannel observer.ReadonlyChannel[twitch.StreamOnlineState]) (*Director, error) {
+func NewDirector(maxStreams int, bufferBaseDirectory string, username string, onlineChannel observer.ReadonlyChannel[twitchng.StreamOnlineState]) (*Director, error) {
 	if maxStreams <= 0 {
 		return nil, errors.New("maxStreams must be greater than 0")
 	}
@@ -145,7 +145,7 @@ func (d *Director) createRecordingContext() (context.Context, context.CancelFunc
 	}
 }
 
-func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
+func (d *Director) onlineStateChanged(state twitchng.StreamOnlineState) {
 	if state.IsOnline {
 		d.wentLive()
 	} else {
