@@ -3,6 +3,7 @@ package download
 import (
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/logging"
@@ -17,22 +18,23 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			return
 		}
 
-		stream, err := directory.GetStream(streamID)
+		streamInfo, streamReader, err := directory.GetStream(streamID)
 		if err != nil {
 			logging.Error("failed to retrieve stream", "error", err)
 			http.Error(w, "failed to retrieve stream", http.StatusInternalServerError)
 			return
 		}
-		if stream == nil {
+		if streamReader == nil {
 			http.Error(w, "stream not found", http.StatusNotFound)
 			return
 		}
-		defer funcutils.LogError(stream.Close, "failed to close stream")
+		defer funcutils.LogError(streamReader.Close, "failed to close stream")
 
 		w.Header().Set("Content-Type", "video/mp4")
+		w.Header().Set("Content-Length", strconv.FormatInt(streamInfo.Size, 10))
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+streamID+".ts\"")
 
-		_, err = io.Copy(w, stream)
+		_, err = io.Copy(w, streamReader)
 		if err != nil {
 			logging.Error("failed to stream video", "error", err)
 			http.Error(w, "failed to stream video", http.StatusInternalServerError)

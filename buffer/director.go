@@ -2,12 +2,15 @@ package buffer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +20,46 @@ import (
 	"github.com/matthiasharzer/livebuffer/util/fsutil"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 )
+
+const streamFileName = "stream.ts"
+const metadataFileName = "metadata.json"
+
+type StreamState string
+
+const (
+	StreamStateArchived StreamState = "archived"
+	StreamStateLive     StreamState = "live"
+)
+
+type StreamInfo struct {
+	ID                  string
+	Title               string
+	BroadcasterUserName string
+	StartedAt           time.Time
+	Duration            time.Duration
+	StreamState         StreamState
+	Size                int64
+}
+
+type ClipInfo struct {
+	Stream    StreamInfo
+	StartTime time.Duration
+	EndTime   time.Duration
+	Duration  time.Duration
+}
+
+type wentLiveEvent struct {
+	Title               string
+	BroadcasterUserName string
+	StartedAt           time.Time
+}
+
+type streamMetadata struct {
+	ID                  string    `json:"id"`
+	Title               string    `json:"title"`
+	BroadcasterUserName string    `json:"broadcaster_user_name"`
+	StartedAt           time.Time `json:"started_at"`
+}
 
 func isFfmpegInstalled() bool {
 	command := exec.Command("ffmpeg", "-h")
@@ -147,7 +190,15 @@ func (d *Director) createRecordingContext() (context.Context, context.CancelFunc
 
 func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
 	if state.IsOnline {
-		d.wentLive()
+		startedAt := time.Now()
+		if state.StartedAt != nil {
+			startedAt = *state.StartedAt
+		}
+		d.wentLive(wentLiveEvent{
+			Title:               state.Title,
+			BroadcasterUserName: state.BroadcasterUserName,
+			StartedAt:           startedAt,
+		})
 	} else {
 		d.mu.Lock()
 		defer d.mu.Unlock()
@@ -159,7 +210,32 @@ func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
 	}
 }
 
-func (d *Director) wentLive() {
+func (d *Director) writeMetadataFile(streamBufferDir string, event wentLiveEvent) error {
+	metadataFilePath := filepath.Join(streamBufferDir, metadataFileName)
+	id := fmt.Sprintf("%s_%s", event.BroadcasterUserName, event.StartedAt.Format("20060102_150405"))
+	metadata := streamMetadata{
+		ID:                  id,
+		Title:               event.Title,
+		BroadcasterUserName: event.BroadcasterUserName,
+		StartedAt:           event.StartedAt,
+	}
+
+	file, err := os.Create(metadataFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create metadata file: %w", err)
+	}
+	defer funcutils.LogError(file.Close, "failed to close metadata file")
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to write metadata to file: %w", err)
+	}
+
+	return nil
+}
+
+func (d *Director) wentLive(event wentLiveEvent) {
 	logging.Info("stream went live, starting recording session", "username", d.username)
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -169,13 +245,27 @@ func (d *Director) wentLive() {
 		d.cancelRecording = nil
 	}
 
-	err := d.startRecording()
+	streamBufferDir := filepath.Join(d.bufferDirectory, fmt.Sprintf("%s_%s", event.BroadcasterUserName, event.StartedAt.Format("20060102_150405")))
+	err := os.MkdirAll(streamBufferDir, 0777)
+	if err != nil {
+		logging.Error("failed to create stream buffer directory", "error", err)
+		return
+	}
+
+	err = d.writeMetadataFile(streamBufferDir, event)
+	if err != nil {
+		logging.Error("failed to write metadata file", "error", err)
+		return
+	}
+
+	streamFile := filepath.Join(streamBufferDir, streamFileName)
+	err = d.startRecording(streamFile)
 	if err != nil {
 		logging.Error("failed to start recording session", "error", err)
 	}
 }
 
-func (d *Director) startRecording() error {
+func (d *Director) startRecording(filePath string) error {
 	if d.session != nil {
 		return fmt.Errorf("recording session already exists")
 	}
@@ -183,8 +273,7 @@ func (d *Director) startRecording() error {
 	ctx, cancel := d.createRecordingContext()
 	d.cancelRecording = cancel
 
-	bufferFilePath := filepath.Join(d.bufferDirectory, fmt.Sprintf("%s_%d.ts", d.username, time.Now().Unix()))
-	session, err := newRecordingSession(d.username, bufferFilePath)
+	session, err := newRecordingSession(d.username, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to create recording session: %w", err)
 	}
@@ -198,20 +287,92 @@ func (d *Director) startRecording() error {
 	return nil
 }
 
-func (d *Director) GetStreams() ([]string, error) {
+func (d *Director) getStreamDuration(streamFile string) (time.Duration, error) {
+	cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", streamFile)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get stream duration: %w", err)
+	}
+
+	durationStr := strings.Trim(string(output), "\n\r")
+	duration, err := time.ParseDuration(fmt.Sprintf("%ss", durationStr))
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse stream duration: %w", err)
+	}
+
+	return duration, nil
+}
+
+func (d *Director) readStreamInfo(streamBufferDir string) (StreamInfo, error) {
+	metadataFilePath := filepath.Join(streamBufferDir, metadataFileName)
+	streamFile := filepath.Join(streamBufferDir, streamFileName)
+	file, err := os.Open(metadataFilePath)
+	if err != nil {
+		return StreamInfo{}, fmt.Errorf("failed to open metadata file: %w", err)
+	}
+	defer funcutils.LogError(file.Close, "failed to close metadata file")
+
+	var metadata streamMetadata
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&metadata)
+	if err != nil {
+		return StreamInfo{}, fmt.Errorf("failed to decode metadata: %w", err)
+	}
+	duration, err := d.getStreamDuration(streamFile)
+	if err != nil {
+		logging.Warn("failed to get stream duration, setting to 0", "error", err)
+		duration = 0
+	}
+
+	fileInfo, err := os.Stat(streamFile)
+	if err != nil {
+		return StreamInfo{}, fmt.Errorf("failed to stat stream file: %w", err)
+	}
+	size := fileInfo.Size()
+
+	streamState := StreamStateArchived
+	if d.session != nil && d.session.FilePath() == streamFile {
+		streamState = StreamStateLive
+	}
+
+	return StreamInfo{
+		ID:                  metadata.ID,
+		Title:               metadata.Title,
+		BroadcasterUserName: metadata.BroadcasterUserName,
+		StartedAt:           metadata.StartedAt,
+		Duration:            duration,
+		StreamState:         streamState,
+		Size:                size,
+	}, nil
+}
+
+func (d *Director) GetStreams() ([]StreamInfo, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	files, err := fsutil.ListFilesOrdered(d.bufferDirectory)
+	dirEntries, err := os.ReadDir(d.bufferDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list buffer files: %w", err)
 	}
-	var streams []string
-	for _, file := range files {
-		fileName := filepath.Base(file)
-		fileNameWithoutExt := fileName[:len(fileName)-len(filepath.Ext(fileName))]
-		streams = append(streams, fileNameWithoutExt)
+	var streams []StreamInfo
+	for _, entry := range dirEntries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		streamBufferDir := filepath.Join(d.bufferDirectory, entry.Name())
+		streamInfo, err := d.readStreamInfo(streamBufferDir)
+		if err != nil {
+			logging.Error("failed to read stream info", "error", err)
+			continue
+		}
+		streams = append(streams, streamInfo)
 	}
+
+	slices.SortStableFunc(streams, func(a, b StreamInfo) int {
+		return a.StartedAt.Compare(b.StartedAt)
+	})
+
 	return streams, nil
 }
 
@@ -220,7 +381,7 @@ func (d *Director) resolveStreamPath(streamName string) (string, error) {
 		return "", fmt.Errorf("invalid stream_id")
 	}
 
-	streamPath := filepath.Join(d.bufferDirectory, streamName+".ts")
+	streamPath := filepath.Join(d.bufferDirectory, streamName)
 	_, err := os.Stat(streamPath)
 	if os.IsNotExist(err) {
 		return "", nil
@@ -230,27 +391,37 @@ func (d *Director) resolveStreamPath(streamName string) (string, error) {
 	return streamPath, nil
 }
 
-func (d *Director) GetStream(streamName string) (io.ReadCloser, error) {
+func (d *Director) GetStream(streamID string) (StreamInfo, io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamPath, err := d.resolveStreamPath(streamName)
+	streamPath, err := d.resolveStreamPath(streamID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve stream path: %w", err)
+		return StreamInfo{}, nil, fmt.Errorf("failed to resolve stream path: %w", err)
 	}
 	if streamPath == "" {
-		return nil, nil
+		return StreamInfo{}, nil, nil
 	}
 
-	if d.session != nil && d.session.FilePath() == streamPath {
-		return d.session.buffer.NewSnapshotReader()
-	}
-
-	f, err := os.Open(streamPath)
+	streamFilePath := filepath.Join(streamPath, streamFileName)
+	streamInfo, err := d.readStreamInfo(streamPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open stream %s: %w", streamName, err)
+		return StreamInfo{}, nil, fmt.Errorf("failed to read stream info: %w", err)
 	}
-	return f, nil
+	if d.session != nil && d.session.FilePath() == streamFilePath {
+		reader, size, err := d.session.buffer.NewSnapshotReader()
+		if err != nil {
+			return StreamInfo{}, nil, fmt.Errorf("failed to create snapshot reader for live stream: %w", err)
+		}
+		streamInfo.Size = size // d.readStreamInfo only has the size from the file on disk, but we want to return the size of the snapshot reader for live streams
+		return streamInfo, reader, nil
+	}
+
+	f, err := os.Open(streamFilePath)
+	if err != nil {
+		return StreamInfo{}, nil, fmt.Errorf("failed to open stream %s: %w", streamID, err)
+	}
+	return streamInfo, f, nil
 }
 
 func (d *Director) GetClip(streamName string, startTime, endTime time.Duration) (io.ReadCloser, error) {

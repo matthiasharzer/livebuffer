@@ -55,7 +55,7 @@ func (vs *VideoFileBuffer) Close() error {
 	return vs.writeHandle.Close()
 }
 
-func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadCloser, error) {
+func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadCloser, int64, error) {
 	// How much did we write to the file?
 	vs.mu.RLock()
 	currentSize := vs.size
@@ -63,7 +63,7 @@ func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadCloser, error) {
 
 	f, err := os.Open(vs.filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file %s for snapshot: %w", vs.filePath, err)
+		return nil, 0, fmt.Errorf("failed to open file %s for snapshot: %w", vs.filePath, err)
 	}
 
 	// Limit the reader to the current size of the file at the time of snapshot creation
@@ -72,7 +72,7 @@ func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadCloser, error) {
 	return &readCloserWrapper{
 		Reader: limitedReader,
 		Closer: f, // Ensure calling Close() closes the underlying *os.File
-	}, nil
+	}, currentSize, nil
 }
 
 type readCloserWrapper struct {
