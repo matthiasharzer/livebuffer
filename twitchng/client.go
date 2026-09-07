@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/twitchng/eventsub"
 	"github.com/nicklaw5/helix"
@@ -15,6 +16,7 @@ import (
 type StreamOnlineState struct {
 	IsOnline            bool
 	BroadcasterUserName string
+	Title               string
 	StartedAt           *time.Time
 }
 
@@ -27,9 +29,10 @@ type streamOnlineOfflineEventPayload struct {
 type Client struct {
 	userID string
 
-	helixClient    *helix.Client
-	eventSubClient *eventsub.Client
-	onlineChannel  observer.ReadWriteChannel[StreamOnlineState]
+	unsubscribeEventSub observer.UnsubscribeFunc
+	helixClient         *helix.Client
+	eventSubClient      *eventsub.Client
+	onlineChannel       observer.ReadWriteChannel[StreamOnlineState]
 }
 
 func NewClient(clientID, clientSecret, userName string, evenSubURL url.URL, eventSubSecret string) (*Client, error) {
@@ -74,24 +77,54 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 		var payload streamOnlineOfflineEventPayload
 		err := json.Unmarshal(notification.Event, &payload)
 		if err != nil {
-			fmt.Printf("failed to unmarshal payload for event %s: %v\n", notification.Subscription.Type, err)
+			logging.Error("failed to unmarshal payload for event", "type", notification.Subscription.Type, "error", err)
 			return
 		}
+		stream, err := c.getStream(payload.ID)
+		if err != nil {
+			logging.Error("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
+			return
+		}
+		if stream == nil {
+			logging.Info("stream not found for event", "type", notification.Subscription.Type)
+			return
+		}
+
+		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "title", stream.Title, "started_at", payload.StartedAt)
 		c.onlineChannel.Publish(StreamOnlineState{
 			IsOnline:            notification.Subscription.Type == "stream.online",
 			BroadcasterUserName: payload.BroadcasterUserName,
+			Title:               stream.Title,
 			StartedAt:           &payload.StartedAt,
 		})
 	default:
-		fmt.Printf("received unknown event type: %s\n", notification.Subscription.Type)
+		logging.Warn("received unknown event", "type", notification.Subscription.Type)
 	}
 }
 
+func (c *Client) getStream(id string) (*helix.Stream, error) {
+	response, err := c.helixClient.GetStreams(&helix.StreamsParams{
+		UserIDs: []string{id},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stream: %w", err)
+	}
+	if len(response.Data.Streams) == 0 {
+		return nil, nil
+	}
+	return &response.Data.Streams[0], nil
+}
+
 func (c *Client) StartEventSub() error {
+	if c.unsubscribeEventSub != nil {
+		c.unsubscribeEventSub()
+	}
+
 	err := c.eventSubClient.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start eventsub client: %w", err)
 	}
+	c.unsubscribeEventSub = c.eventSubClient.Events().Subscribe(c.handleEventSubNotification)
 	return nil
 }
 
@@ -104,5 +137,8 @@ func (c *Client) OnlineChannel() observer.ReadonlyChannel[StreamOnlineState] {
 }
 
 func (c *Client) Close() error {
+	if c.unsubscribeEventSub != nil {
+		c.unsubscribeEventSub()
+	}
 	return nil
 }
