@@ -45,12 +45,13 @@ func (f *ffmpegReadCloser) Close() error {
 
 // Director manages the livebuffer for twitch streams
 type Director struct {
-	maxStreams      int
-	bufferDirectory string
-	username        string
-	onlineChannel   observer.ReadonlyChannel[twitch.StreamOnlineState]
-	session         *recordingSession
-	cancelRecording func()
+	maxStreams               int
+	bufferDirectory          string
+	username                 string
+	onlineChannel            observer.ReadonlyChannel[twitch.StreamOnlineState]
+	unsubscribeOnlineChannel observer.UnsubscribeFunc
+	session                  *recordingSession
+	cancelRecording          func()
 
 	mu sync.Mutex
 }
@@ -84,13 +85,12 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string, on
 		return nil, fmt.Errorf("failed to initially cleanup buffer files: %w", err)
 	}
 
-	onlineChannel.Subscribe(director)
+	director.subscribeToOnlineChannel()
 	return director, nil
 }
 
-func (d *Director) Update(state twitch.StreamOnlineState) {
-	// Update is the Observer interface method, we just forward the state to the internal handler
-	d.onlineStateChanged(state)
+func (d *Director) subscribeToOnlineChannel() {
+	d.unsubscribeOnlineChannel = d.onlineChannel.Subscribe(d.onlineStateChanged)
 }
 
 func (d *Director) cleanupFiles() error {
@@ -298,6 +298,11 @@ func (d *Director) GetClip(streamName string, startTime, endTime time.Duration) 
 func (d *Director) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.onlineChannel.Unsubscribe(d)
+
+	if d.unsubscribeOnlineChannel != nil {
+		d.unsubscribeOnlineChannel()
+		d.unsubscribeOnlineChannel = nil
+	}
+
 	return d.stopRecordingStop()
 }

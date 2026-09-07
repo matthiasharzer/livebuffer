@@ -3,6 +3,7 @@ package run
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -43,7 +44,7 @@ func init() {
 	}
 }
 
-func getTwitchAPIClient(secret, eventSubCallbackURL string) (*twitch.APIClient, error) {
+func getTwitchClient(userName, eventSubSecret string, eventSubCallbackURL url.URL) (*twitch.Client, error) {
 	clientID := os.Getenv("TWITCH_CLIENT_ID")
 	if clientID == "" {
 		return nil, fmt.Errorf("TWITCH_CLIENT_ID is not set")
@@ -54,7 +55,7 @@ func getTwitchAPIClient(secret, eventSubCallbackURL string) (*twitch.APIClient, 
 		return nil, fmt.Errorf("TWITCH_CLIENT_SECRET is not set")
 	}
 
-	return twitch.NewAPIClient(eventSubCallbackURL, secret, clientID, clientSecret)
+	return twitch.NewClient(clientID, clientSecret, userName, eventSubCallbackURL, eventSubSecret)
 }
 
 var Command = &cobra.Command{
@@ -104,24 +105,18 @@ var Command = &cobra.Command{
 		if before, ok := strings.CutSuffix(liveBufferPublicURL, "/"); ok {
 			liveBufferPublicURL = before
 		}
-		eventSubURL := fmt.Sprintf("%s/api/v1/twitch-event-sub", liveBufferPublicURL)
-		logging.Info("using eventsub callback URL", "url", eventSubURL)
-
-		twitchAPI, err := getTwitchAPIClient(eventSubSecret, eventSubURL)
+		eventSubURL, err := url.Parse(fmt.Sprintf("%s/api/v1/twitch-event-sub", liveBufferPublicURL))
 		if err != nil {
-			return fmt.Errorf("failed to create twitch API client: %w", err)
-		}
-		defer funcutils.LogError(twitchAPI.Close, "failed to close twitch API client")
-
-		userID, err := twitchAPI.GetUserID(username)
-		if err != nil {
-			return fmt.Errorf("failed to get user ID for username %s: %w", username, err)
+			return fmt.Errorf("failed to parse live buffer public URL: %w", err)
 		}
 
-		twitchClient, err := twitch.NewClient(twitchAPI, userID)
+		logging.Info("using eventsub callback URL", "url", eventSubURL.String())
+
+		twitchClient, err := getTwitchClient(username, eventSubSecret, *eventSubURL)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create twitch client: %w", err)
 		}
+		defer funcutils.LogError(twitchClient.Close, "failed to close twitch client")
 
 		director, err := buffer.NewDirector(maxStreams, bufferDirectory, username, twitchClient.OnlineChannel())
 		if err != nil {
@@ -129,7 +124,7 @@ var Command = &cobra.Command{
 		}
 		defer funcutils.LogError(director.Close, "failed to close director")
 
-		mux := api.GetMux(twitchAPI, director)
+		mux := api.GetMux(twitchClient, director)
 
 		err = twitchClient.StartEventSub()
 		if err != nil {
