@@ -5,14 +5,17 @@ go 1.27.0
 tool honnef.co/go/tools/cmd/staticcheck
 
 require (
+	github.com/docker/go-units v0.5.0
 	github.com/matthiasharzer/twitch-eventsub-bindings v0.0.0-20260830154906-9abb165f78e5 // temporary, until upstream is updated
 	github.com/matthiasharzer/twitch-eventsub-framework v0.0.0-20260830163507-5d73629446ee
+	github.com/nicklaw5/helix v1.25.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 )
 
 require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
+	github.com/golang-jwt/jwt v3.2.1+incompatible // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mozillazg/go-httpheader v0.4.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect

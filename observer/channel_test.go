@@ -12,7 +12,7 @@ type TestSubscriber struct {
 	Notifications []string
 }
 
-func (s *TestSubscriber) Update(notification string) {
+func (s *TestSubscriber) OnMessage(notification string) {
 	s.Notifications = append(s.Notifications, notification)
 }
 
@@ -20,7 +20,7 @@ func TestNewChannel(t *testing.T) {
 	t.Run("sends notifications to a subscriber", func(t *testing.T) {
 		testChannel := observer.NewChannel[string]()
 		testSubscriber := &TestSubscriber{}
-		testChannel.Subscribe(testSubscriber)
+		testChannel.Subscribe(testSubscriber.OnMessage)
 
 		testChannel.Publish("Test Notification 1")
 		testChannel.Publish("Test Notification 2")
@@ -33,8 +33,8 @@ func TestNewChannel(t *testing.T) {
 	t.Run("does not send notifications to unsubscribed subscribers", func(t *testing.T) {
 		testChannel := observer.NewChannel[string]()
 		testSubscriber := &TestSubscriber{}
-		testChannel.Subscribe(testSubscriber)
-		testChannel.Unsubscribe(testSubscriber)
+		unsubscribe := testChannel.Subscribe(testSubscriber.OnMessage)
+		unsubscribe()
 
 		testChannel.Publish("Test Notification 1")
 
@@ -45,8 +45,8 @@ func TestNewChannel(t *testing.T) {
 		testChannel := observer.NewChannel[string]()
 		subscriber1 := &TestSubscriber{}
 		subscriber2 := &TestSubscriber{}
-		testChannel.Subscribe(subscriber1)
-		testChannel.Subscribe(subscriber2)
+		testChannel.Subscribe(subscriber1.OnMessage)
+		testChannel.Subscribe(subscriber2.OnMessage)
 
 		testChannel.Publish("Test Notification")
 
@@ -60,8 +60,8 @@ func TestNewChannel(t *testing.T) {
 		testChannel := observer.NewChannel[string]()
 		subscriber1 := &TestSubscriber{}
 		subscriber2 := &TestSubscriber{}
-		testChannel.Subscribe(subscriber1)
-		testChannel.Subscribe(subscriber2)
+		testChannel.Subscribe(subscriber1.OnMessage)
+		testChannel.Subscribe(subscriber2.OnMessage)
 
 		testChannel.Clear()
 

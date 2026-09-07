@@ -88,7 +88,7 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string, on
 	return director, nil
 }
 
-func (d *Director) Update(state twitch.StreamOnlineState) {
+func (d *Director) OnUpdate(state twitch.StreamOnlineState) {
 	// Update is the Observer interface method, we just forward the state to the internal handler
 	d.onlineStateChanged(state)
 }
