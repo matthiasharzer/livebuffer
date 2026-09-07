@@ -8,7 +8,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
-	"github.com/nicklaw5/helix"
+	"github.com/nicklaw5/helix/v2"
 )
 
 const eventSubMaxPayload = 1 * units.MiB
@@ -63,8 +63,7 @@ func (c *Client) getExistingEventSubSubscriptions() ([]helix.EventSubSubscriptio
 }
 
 func (c *Client) isMatchingEventSubSubscription(sub helix.EventSubSubscription, subTypes []string) bool {
-	isWebsocket := sub.Transport.Method == "websocket"
-	if !isWebsocket {
+	if sub.Transport.Method != "webhook" {
 		return false
 	}
 	if sub.Transport.Callback != c.evenSubURL.String() {
@@ -99,7 +98,6 @@ func (c *Client) createEventSubSubscription(eventType string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create eventsub subscription for %s: %w", eventType, err)
 	}
-	logging.Info("created eventsub subscription for", "type", eventType, "callback", c.evenSubURL.String())
 	return nil
 }
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
-	"github.com/nicklaw5/helix"
+	"github.com/nicklaw5/helix/v2"
 )
 
 type Notification struct {

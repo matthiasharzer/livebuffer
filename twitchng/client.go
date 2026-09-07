@@ -10,7 +10,7 @@ import (
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/twitchng/eventsub"
-	"github.com/nicklaw5/helix"
+	"github.com/nicklaw5/helix/v2"
 )
 
 type StreamOnlineState struct {
@@ -44,6 +44,12 @@ func NewClient(clientID, clientSecret, userName string, evenSubURL url.URL, even
 		return nil, fmt.Errorf("failed to create helix client: %w", err)
 	}
 
+	accessTokenResponse, err := helixClient.RequestAppAccessToken([]string{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to request app access token: %w", err)
+	}
+	helixClient.SetAppAccessToken(accessTokenResponse.Data.AccessToken)
+
 	response, err := helixClient.GetUsers(&helix.UsersParams{
 		Logins: []string{userName},
 	})
@@ -72,15 +78,14 @@ func NewClient(clientID, clientSecret, userName string, evenSubURL url.URL, even
 
 func (c *Client) handleEventSubNotification(notification eventsub.Notification) {
 	switch notification.Subscription.Type {
-	case "stream.online":
-	case "stream.offline":
+	case "stream.online", "stream.offline":
 		var payload streamOnlineOfflineEventPayload
 		err := json.Unmarshal(notification.Event, &payload)
 		if err != nil {
 			logging.Error("failed to unmarshal payload for event", "type", notification.Subscription.Type, "error", err)
 			return
 		}
-		stream, err := c.getStream(payload.ID)
+		stream, err := c.getCurrentUserStream()
 		if err != nil {
 			logging.Error("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
 			return
@@ -102,9 +107,9 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 	}
 }
 
-func (c *Client) getStream(id string) (*helix.Stream, error) {
+func (c *Client) getCurrentUserStream() (*helix.Stream, error) {
 	response, err := c.helixClient.GetStreams(&helix.StreamsParams{
-		UserIDs: []string{id},
+		UserIDs: []string{c.userID},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get stream: %w", err)
