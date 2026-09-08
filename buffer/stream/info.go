@@ -1,9 +1,9 @@
 package stream
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
 )
 
@@ -22,6 +22,7 @@ type Info struct {
 	Duration            time.Duration
 	StreamState         StreamState
 	FilePath            string
+	Directory           string
 	Size                int64
 }
 
@@ -40,7 +41,7 @@ func BuildInfo(streamDirectory string, size int64, state StreamState) (Info, err
 
 	duration, err := ffmpegutil.GetDuration(File(streamDirectory))
 	if err != nil {
-		return Info{}, fmt.Errorf("failed to get duration of stream file: %w", err)
+		logging.Warn("failed to get duration of stream file", "file", File(streamDirectory), "error", err)
 	}
 
 	return Info{
@@ -51,6 +52,7 @@ func BuildInfo(streamDirectory string, size int64, state StreamState) (Info, err
 		Duration:            duration,
 		StreamState:         state,
 		FilePath:            File(streamDirectory),
+		Directory:           streamDirectory,
 		Size:                size,
 	}, nil
 }

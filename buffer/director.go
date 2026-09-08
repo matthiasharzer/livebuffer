@@ -2,7 +2,6 @@ package buffer
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -20,54 +19,8 @@ import (
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/twitch"
-	"github.com/matthiasharzer/livebuffer/util/funcutils"
+	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
 )
-
-const streamFileName = "stream.ts"
-const metadataFileName = "metadata.json"
-
-type StreamState string
-
-const (
-	StreamStateArchived StreamState = "archived"
-	StreamStateLive     StreamState = "live"
-)
-
-type StreamInfo struct {
-	ID                  string
-	Title               string
-	BroadcasterUserName string
-	StartedAt           time.Time
-	Duration            time.Duration
-	StreamState         StreamState
-	Size                int64
-}
-
-type ClipInfo struct {
-	Stream    StreamInfo
-	StartTime time.Duration
-	EndTime   time.Duration
-	Duration  time.Duration
-}
-
-type wentLiveEvent struct {
-	Title               string
-	BroadcasterUserName string
-	StartedAt           time.Time
-}
-
-type streamMetadata struct {
-	ID                  string    `json:"id"`
-	Title               string    `json:"title"`
-	BroadcasterUserName string    `json:"broadcaster_user_name"`
-	StartedAt           time.Time `json:"started_at"`
-}
-
-func isFfmpegInstalled() bool {
-	command := exec.Command("ffmpeg", "-h")
-	err := command.Run()
-	return err == nil
-}
 
 type ffmpegReadCloser struct {
 	io.ReadCloser
@@ -105,7 +58,7 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string, on
 		return nil, errors.New("maxStreams must be greater than 0")
 	}
 
-	if !isFfmpegInstalled() {
+	if !ffmpegutil.IsInstalled() {
 		return nil, errors.New("ffmpeg is not installed. Please install ffmpeg to use the director")
 	}
 
@@ -124,7 +77,7 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string, on
 	}
 	err = director.cleanupFiles()
 	if err != nil {
-		return nil, fmt.Errorf("failed to initially cleanup buffer files: %w", err)
+		return nil, err
 	}
 
 	director.subscribeToOnlineChannel()
@@ -136,7 +89,7 @@ func (d *Director) subscribeToOnlineChannel() {
 }
 
 func (d *Director) cleanupFiles() error {
-	streams, err := d.GetStreams()
+	streams, err := d.getStreamsSortedByStartTime()
 	if err != nil {
 		return fmt.Errorf("failed to read streams: %w", err)
 	}
@@ -145,15 +98,23 @@ func (d *Director) cleanupFiles() error {
 		return nil
 	}
 
+	var liveStreamID string
+	if d.liveStreamManager != nil {
+		liveStreamID = d.liveStreamManager.StreamID()
+	}
+
 	streamsToDelete := streams[:len(streams)-d.maxStreams]
 	for _, streamInfo := range streamsToDelete {
-		filePath := filepath.Join(d.bufferDirectory, streamInfo.FilePath)
-		//err := os.Remove(filePath)
-		//if err != nil {
-		//	return fmt.Errorf("failed to delete buffer file %s: %w", streamInfo, err)
-		//}
-		_ = filePath
-		logging.Info("deleted buffer file", "file", streamInfo)
+		if streamInfo.ID == liveStreamID {
+			// This should never happen, but just in case, we skip deleting the live stream
+			logging.Warn("skipping deletion of live stream", "stream", streamInfo.ID, "directory", streamInfo.Directory)
+			continue
+		}
+		err := os.RemoveAll(streamInfo.Directory)
+		if err != nil {
+			return fmt.Errorf("failed to delete buffered stream %s: %w", streamInfo.Directory, err)
+		}
+		logging.Info("deleted buffered stream", "stream", streamInfo.ID, "directory", streamInfo.Directory)
 	}
 	return nil
 }
@@ -192,31 +153,6 @@ func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
 	}
 }
 
-func (d *Director) writeMetadataFile(streamBufferDir string, event wentLiveEvent) error {
-	metadataFilePath := filepath.Join(streamBufferDir, metadataFileName)
-	id := fmt.Sprintf("%s_%s", event.BroadcasterUserName, event.StartedAt.Format("20060102_150405"))
-	metadata := streamMetadata{
-		ID:                  id,
-		Title:               event.Title,
-		BroadcasterUserName: event.BroadcasterUserName,
-		StartedAt:           event.StartedAt,
-	}
-
-	file, err := os.Create(metadataFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to create metadata file: %w", err)
-	}
-	defer funcutils.LogError(file.Close, "failed to close metadata file")
-
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(metadata)
-	if err != nil {
-		return fmt.Errorf("failed to write metadata to file: %w", err)
-	}
-
-	return nil
-}
-
 func (d *Director) wentLive(event stream.WentLiveEvent) {
 	logging.Info("stream went live, starting recording session", "username", d.username)
 	d.mu.Lock()
@@ -245,6 +181,11 @@ func (d *Director) wentLive(event stream.WentLiveEvent) {
 	}
 	d.liveStreamManager = manager
 	logging.Info("started recording session", "username", d.username, "stream_id", manager.StreamID())
+
+	err = d.cleanupFiles()
+	if err != nil {
+		logging.Warn("failed to cleanup files", "error", err)
+	}
 }
 
 func (d *Director) getManager(streamID string) (stream.Manager, error) {
@@ -321,10 +262,7 @@ func (d *Director) readStreamInfos() iter.Seq2[stream.Info, error] {
 	}
 }
 
-func (d *Director) GetStreams() ([]stream.Info, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
+func (d *Director) getStreamsSortedByStartTime() ([]stream.Info, error) {
 	var streams []stream.Info
 	for streamInfo, err := range d.readStreamInfos() {
 		if err != nil {
@@ -338,6 +276,12 @@ func (d *Director) GetStreams() ([]stream.Info, error) {
 	})
 
 	return streams, nil
+}
+
+func (d *Director) GetStreams() ([]stream.Info, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.getStreamsSortedByStartTime()
 }
 
 func (d *Director) GetStream(streamID string) (stream.Info, io.ReadCloser, error) {

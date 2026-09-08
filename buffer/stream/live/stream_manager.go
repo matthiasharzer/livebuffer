@@ -64,11 +64,11 @@ func (sm *StreamManager) StreamFilePath() (string, error) {
 }
 
 func (sm *StreamManager) Close() error {
-	if sm.session != nil {
-		return sm.session.Close()
-	}
 	if sm.cancelRecording != nil {
 		sm.cancelRecording()
+	}
+	if sm.session != nil {
+		return sm.session.Close()
 	}
 	return nil
 }
