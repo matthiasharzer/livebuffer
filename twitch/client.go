@@ -14,7 +14,7 @@ import (
 )
 
 type StreamOnlineState struct {
-	ID                  string
+	StreamID            string
 	IsOnline            bool
 	BroadcasterUserName string
 	Title               string
@@ -115,7 +115,7 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 
 		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "title", streamTitle, "started_at", payload.StartedAt)
 		c.onlineChannel.Publish(StreamOnlineState{
-			ID:                  payload.ID,
+			StreamID:            payload.ID,
 			IsOnline:            notification.Subscription.Type == "stream.online",
 			BroadcasterUserName: payload.BroadcasterUserName,
 			Title:               streamTitle,

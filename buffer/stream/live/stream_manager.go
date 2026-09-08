@@ -2,7 +2,6 @@ package live
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 
@@ -18,9 +17,8 @@ type StreamManager struct {
 }
 
 func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, streamDirectory string) (*StreamManager, error) {
-	id := fmt.Sprintf("%s_%s", event.BroadcasterUserName, event.StartedAt.Format("20060102_150405"))
 	err := stream.WriteMetadata(streamDirectory, stream.Metadata{
-		ID:                  id,
+		ID:                  event.StreamID,
 		Title:               event.Title,
 		BroadcasterUserName: event.BroadcasterUserName,
 		StartedAt:           event.StartedAt,
@@ -49,7 +47,7 @@ func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, 
 	}
 
 	return &StreamManager{
-		id:              id,
+		id:              event.StreamID,
 		streamDirectory: streamDirectory,
 		cancelRecording: cancel,
 		session:         session,

@@ -1,6 +1,7 @@
 package download
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -30,9 +31,11 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 		}
 		defer funcutils.LogError(streamReader.Close, "failed to close stream")
 
+		fileName := fmt.Sprintf("%s_%s.ts", streamInfo.BroadcasterUserName, streamInfo.ID)
+
 		w.Header().Set("Content-Type", "video/mp4")
 		w.Header().Set("Content-Length", strconv.FormatInt(streamInfo.Size, 10))
-		w.Header().Set("Content-Disposition", "attachment; filename=\""+streamID+".ts\"")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+fileName+"\"")
 
 		_, err = io.Copy(w, streamReader)
 		if err != nil {

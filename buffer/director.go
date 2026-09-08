@@ -194,6 +194,7 @@ func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
 			startedAt = *state.StartedAt
 		}
 		d.wentLive(stream.WentLiveEvent{
+			StreamID:            state.StreamID,
 			Title:               state.Title,
 			BroadcasterUserName: d.username,
 			StartedAt:           startedAt,
@@ -215,6 +216,10 @@ func (d *Director) wentLive(event stream.WentLiveEvent) {
 	defer d.mu.Unlock()
 
 	if d.liveStreamManager != nil {
+		if d.liveStreamManager.StreamID() == event.StreamID {
+			logging.Warn("received went live event for stream that is already being recorded (ignoring)", "stream_id", event.StreamID)
+			return
+		}
 		err := d.liveStreamManager.Close()
 		if err != nil {
 			logging.Error("failed to close existing live stream manager", "error", err)
