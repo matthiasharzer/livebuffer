@@ -32,7 +32,7 @@ services:
 Quick reference for the command parameters:
 - `--port`: The port on which the REST API will be available (default: 4000).
 - `--username`: The Twitch username of the livestream to buffer.
-- `--public-url`: The public URL where the REST API will be accessible (used for twitch webhooks).
+- `--public-url`: The public URL where the REST API will be accessible (used for twitch webhooks). This should be the domain + protocol, not the full path to the API endpoint (e.g., `https://yourdomain.com`).
 
 
 #### Docker CLI
