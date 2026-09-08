@@ -13,14 +13,14 @@ import (
 	"github.com/matthiasharzer/livebuffer/util/httputil"
 )
 
-func GetMux(twitchAPI *twitch.Client, director *buffer.Director) *http.ServeMux {
+func GetMux(twitchClient *twitch.Client, director *buffer.Director) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})
 
-	mux.Handle("POST /api/v1/twitch-event-sub", twitchAPI.EventSubHTTPHandler())
+	mux.Handle("POST /api/v1/twitch-event-sub", twitchClient.EventSubHTTPHandler())
 	mux.HandleFunc("GET /api/v1/list", list.Handler(director))
 	mux.HandleFunc("GET /api/v1/download", download.Handler(director))
 	mux.HandleFunc("GET /api/v1/clip", clip.Handler(director))

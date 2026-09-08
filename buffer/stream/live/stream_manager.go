@@ -2,6 +2,7 @@ package live
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 
@@ -90,8 +91,22 @@ func (sm *StreamManager) Close() error {
 	if sm.cancelRecording != nil {
 		sm.cancelRecording()
 	}
+	var errs []error
 	if sm.session != nil {
-		return sm.session.Close()
+		err := sm.session.Close()
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
+	if sm.broadcaster != nil {
+		err := sm.broadcaster.Close()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
 	return nil
 }
