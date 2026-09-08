@@ -432,6 +432,33 @@ func (d *Director) GetClip(streamID string, startTime, endTime time.Duration) (s
 	return clipInfo, &readCloser, nil
 }
 
+func (d *Director) LiveSubscribe() (chan []byte, func()) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.liveStreamManager == nil {
+		return nil, nil
+	}
+
+	clientChan := make(chan []byte, 250)
+	d.liveStreamManager.LiveSubscribe(clientChan)
+
+	unsubscribe := func() {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		d.liveStreamManager.LiveUnsubscribe(clientChan)
+		close(clientChan)
+	}
+	return clientChan, unsubscribe
+}
+
+func (d *Director) HasLiveStream() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.liveStreamManager != nil
+}
+
 func (d *Director) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

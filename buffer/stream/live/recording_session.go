@@ -31,14 +31,15 @@ func newRecordingSession(username string, bufferFilePath string) (*recordingSess
 	}, nil
 }
 
-func (rs *recordingSession) Start(ctx context.Context) error {
+func (rs *recordingSession) Start(ctx context.Context, broadcaster *broadcastWriter) error {
 	reader, err := rs.recorder.Record(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start recording: %w", err)
 	}
 
 	go func() {
-		_, err := io.Copy(rs.buffer, reader)
+		target := io.MultiWriter(rs.buffer, broadcaster)
+		_, err := io.Copy(target, reader)
 		if err != nil {
 			logging.Error("failed to write to video store", "error", err)
 		}

@@ -14,6 +14,7 @@ type StreamManager struct {
 	streamDirectory string
 	cancelRecording context.CancelFunc
 	session         *recordingSession
+	broadcaster     *broadcastWriter
 }
 
 func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, streamDirectory string) (*StreamManager, error) {
@@ -27,6 +28,7 @@ func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, 
 		return nil, err
 	}
 
+	broadcaster := newBroadcastWriter()
 	session, err := newRecordingSession(event.BroadcasterUserName, stream.File(streamDirectory))
 	if err != nil {
 		cleanupErr := os.Remove(stream.MetadataFile(streamDirectory))
@@ -36,7 +38,7 @@ func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, 
 		return nil, err
 	}
 	recordingContext, cancel := context.WithCancel(ctx)
-	err = session.Start(recordingContext)
+	err = session.Start(recordingContext, broadcaster)
 	if err != nil {
 		cancel()
 		sessionCloseErr := session.Close()
@@ -55,6 +57,7 @@ func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, 
 		streamDirectory: streamDirectory,
 		cancelRecording: cancel,
 		session:         session,
+		broadcaster:     broadcaster,
 	}, nil
 }
 
@@ -73,6 +76,14 @@ func (sm *StreamManager) Reader() (io.ReadCloser, int64, error) {
 
 func (sm *StreamManager) StreamFilePath() (string, error) {
 	return stream.File(sm.streamDirectory), nil
+}
+
+func (sm *StreamManager) LiveSubscribe(clientChan chan []byte) {
+	sm.broadcaster.AddClient(clientChan)
+}
+
+func (sm *StreamManager) LiveUnsubscribe(clientChan chan []byte) {
+	sm.broadcaster.RemoveClient(clientChan)
 }
 
 func (sm *StreamManager) Close() error {
