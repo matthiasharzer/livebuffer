@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Streamlink Restream</title>
+	<script src="/dist/mpegts.min.js"></script>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			height: 100vh;
+			width: 100vw;
+		}
+		video {
+			width: 100%;
+			height: 100%;
+			background-color: black;
+			max-width: 100dvw;
+			max-height: 100dvh;
+		}
+	</style>
+</head>
+<body>
+<video id="videoElement" controls muted autoplay></video>
+
+<script>
+	if (mpegts.getFeatureList().mseLivePlayback) {
+		const videoElement = document.getElementById('videoElement');
+		const player = mpegts.createPlayer({
+			type: 'mpegts',
+			isLive: true,
+			url: '/api/v1/live'
+		});
+		player.attachMediaElement(videoElement);
+		player.load();
+		player.play();
+	}
+</script>
+</body>
+</html>

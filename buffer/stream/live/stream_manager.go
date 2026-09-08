@@ -2,6 +2,7 @@ package live
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 
@@ -14,6 +15,26 @@ type StreamManager struct {
 	streamDirectory string
 	cancelRecording context.CancelFunc
 	session         *recordingSession
+	broadcaster     *broadcastWriter
+}
+
+func cleanupOnFailure(streamDirectory string, session *recordingSession, broadcaster *broadcastWriter) {
+	metadataRemovalErr := os.Remove(stream.MetadataFile(streamDirectory))
+	if metadataRemovalErr != nil {
+		logging.Warn("failed to clean up metadata file after session creation error", "metadataFile", stream.MetadataFile(streamDirectory), "error", metadataRemovalErr)
+	}
+	if session != nil {
+		sessionCloseErr := session.Close()
+		if sessionCloseErr != nil {
+			logging.Warn("failed to close recording session after start error", "error", sessionCloseErr)
+		}
+	}
+	if broadcaster != nil {
+		broadcastCleanupErr := broadcaster.Close()
+		if broadcastCleanupErr != nil {
+			logging.Warn("failed to clean up broadcaster after session creation error", "error", broadcastCleanupErr)
+		}
+	}
 }
 
 func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, streamDirectory string) (*StreamManager, error) {
@@ -27,26 +48,17 @@ func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, 
 		return nil, err
 	}
 
+	broadcaster := newBroadcastWriter()
 	session, err := newRecordingSession(event.BroadcasterUserName, stream.File(streamDirectory))
 	if err != nil {
-		cleanupErr := os.Remove(stream.MetadataFile(streamDirectory))
-		if cleanupErr != nil {
-			logging.Warn("failed to clean up metadata file after session creation error", "metadataFile", stream.MetadataFile(streamDirectory), "error", cleanupErr)
-		}
+		cleanupOnFailure(streamDirectory, session, broadcaster)
 		return nil, err
 	}
 	recordingContext, cancel := context.WithCancel(ctx)
-	err = session.Start(recordingContext)
+	err = session.Start(recordingContext, broadcaster)
 	if err != nil {
 		cancel()
-		sessionCloseErr := session.Close()
-		if sessionCloseErr != nil {
-			logging.Warn("failed to close recording session after start error", "error", sessionCloseErr)
-		}
-		cleanupErr := os.Remove(stream.MetadataFile(streamDirectory))
-		if cleanupErr != nil {
-			logging.Warn("failed to clean up metadata file after session creation error", "metadataFile", stream.MetadataFile(streamDirectory), "error", cleanupErr)
-		}
+		cleanupOnFailure(streamDirectory, session, broadcaster)
 		return nil, err
 	}
 
@@ -55,6 +67,7 @@ func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, 
 		streamDirectory: streamDirectory,
 		cancelRecording: cancel,
 		session:         session,
+		broadcaster:     broadcaster,
 	}, nil
 }
 
@@ -75,12 +88,45 @@ func (sm *StreamManager) StreamFilePath() (string, error) {
 	return stream.File(sm.streamDirectory), nil
 }
 
+func (sm *StreamManager) LiveSubscribe(clientChan chan []byte) {
+	if sm.broadcaster == nil {
+		close(clientChan)
+		return
+	}
+	sm.broadcaster.AddClient(clientChan)
+}
+
+func (sm *StreamManager) LiveUnsubscribe(clientChan chan []byte) {
+	if sm.broadcaster == nil {
+		close(clientChan)
+		return
+	}
+	sm.broadcaster.RemoveClient(clientChan)
+}
+
 func (sm *StreamManager) Close() error {
 	if sm.cancelRecording != nil {
 		sm.cancelRecording()
+		sm.cancelRecording = nil
 	}
+	var errs []error
 	if sm.session != nil {
-		return sm.session.Close()
+		err := sm.session.Close()
+		if err != nil {
+			errs = append(errs, err)
+		}
+		sm.session = nil
 	}
+	if sm.broadcaster != nil {
+		err := sm.broadcaster.Close()
+		if err != nil {
+			errs = append(errs, err)
+		}
+		sm.broadcaster = nil
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
 	return nil
 }
