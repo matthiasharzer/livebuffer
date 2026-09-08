@@ -18,6 +18,25 @@ type StreamManager struct {
 	broadcaster     *broadcastWriter
 }
 
+func cleanupOnFailure(streamDirectory string, session *recordingSession, broadcaster *broadcastWriter) {
+	metadataRemovalErr := os.Remove(stream.MetadataFile(streamDirectory))
+	if metadataRemovalErr != nil {
+		logging.Warn("failed to clean up metadata file after session creation error", "metadataFile", stream.MetadataFile(streamDirectory), "error", metadataRemovalErr)
+	}
+	if session != nil {
+		sessionCloseErr := session.Close()
+		if sessionCloseErr != nil {
+			logging.Warn("failed to close recording session after start error", "error", sessionCloseErr)
+		}
+	}
+	if broadcaster != nil {
+		broadcastCleanupErr := broadcaster.Close()
+		if broadcastCleanupErr != nil {
+			logging.Warn("failed to clean up broadcaster after session creation error", "error", broadcastCleanupErr)
+		}
+	}
+}
+
 func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, streamDirectory string) (*StreamManager, error) {
 	err := stream.WriteMetadata(streamDirectory, stream.Metadata{
 		ID:                  event.StreamID,
@@ -32,24 +51,14 @@ func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, 
 	broadcaster := newBroadcastWriter()
 	session, err := newRecordingSession(event.BroadcasterUserName, stream.File(streamDirectory))
 	if err != nil {
-		cleanupErr := os.Remove(stream.MetadataFile(streamDirectory))
-		if cleanupErr != nil {
-			logging.Warn("failed to clean up metadata file after session creation error", "metadataFile", stream.MetadataFile(streamDirectory), "error", cleanupErr)
-		}
+		cleanupOnFailure(streamDirectory, session, broadcaster)
 		return nil, err
 	}
 	recordingContext, cancel := context.WithCancel(ctx)
 	err = session.Start(recordingContext, broadcaster)
 	if err != nil {
 		cancel()
-		sessionCloseErr := session.Close()
-		if sessionCloseErr != nil {
-			logging.Warn("failed to close recording session after start error", "error", sessionCloseErr)
-		}
-		cleanupErr := os.Remove(stream.MetadataFile(streamDirectory))
-		if cleanupErr != nil {
-			logging.Warn("failed to clean up metadata file after session creation error", "metadataFile", stream.MetadataFile(streamDirectory), "error", cleanupErr)
-		}
+		cleanupOnFailure(streamDirectory, session, broadcaster)
 		return nil, err
 	}
 
