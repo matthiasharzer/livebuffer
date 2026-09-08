@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/dustin/go-humanize"
 	"github.com/matthiasharzer/livebuffer/buffer"
 )
 
@@ -21,7 +22,7 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 			responseStreams = append(responseStreams, ResponseStream{
 				ID:                  stream.ID,
 				Title:               stream.Title,
-				Size:                stream.Size,
+				Size:                humanize.Bytes(uint64(stream.Size)),
 				Duration:            stream.Duration.String(),
 				StartedAt:           stream.StartedAt,
 				BroadcasterUserName: stream.BroadcasterUserName,
