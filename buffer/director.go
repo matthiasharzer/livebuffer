@@ -112,19 +112,43 @@ func (d *Director) cleanupUnknownDirectories(knownStreamDirectories []string) er
 }
 
 func (d *Director) cleanupFiles() error {
-	streams, err := d.getStreamsSortedByStartTime()
+	dirEntries, err := os.ReadDir(d.bufferDirectory)
 	if err != nil {
-		return fmt.Errorf("failed to read streams: %w", err)
+		return fmt.Errorf("failed to list buffer directory: %w", err)
 	}
 
 	var knownStreamDirectories []string
-	for _, streamInfo := range streams {
-		knownStreamDirectories = append(knownStreamDirectories, streamInfo.Directory)
+
+	type basicStreamInfo struct {
+		stream.Metadata
+		Directory string
+	}
+
+	var streams []basicStreamInfo
+	for _, entry := range dirEntries {
+		if !entry.IsDir() {
+			continue
+		}
+		streamDirectory := filepath.Join(d.bufferDirectory, entry.Name())
+		meta, err := stream.ReadMetadata(streamDirectory)
+		if err != nil {
+			logging.Warn("failed to read metadata for stream directory", "directory", entry.Name(), "error", err)
+			continue
+		}
+		streams = append(streams, basicStreamInfo{
+			Metadata:  meta,
+			Directory: streamDirectory,
+		})
+		knownStreamDirectories = append(knownStreamDirectories, streamDirectory)
 	}
 	err = d.cleanupUnknownDirectories(knownStreamDirectories)
 	if err != nil {
-		return fmt.Errorf("failed to cleanup unknown directories: %w", err)
+		logging.Warn("failed to cleanup unknown directories", "error", err)
 	}
+
+	slices.SortStableFunc(streams, func(a, b basicStreamInfo) int {
+		return a.StartedAt.Compare(b.StartedAt)
+	})
 
 	if len(streams) <= d.maxStreams {
 		return nil
@@ -171,7 +195,7 @@ func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
 		}
 		d.wentLive(stream.WentLiveEvent{
 			Title:               state.Title,
-			BroadcasterUserName: state.BroadcasterUserName,
+			BroadcasterUserName: d.username,
 			StartedAt:           startedAt,
 		})
 	} else {
