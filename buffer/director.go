@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/matthiasharzer/livebuffer/buffer/stream"
+	"github.com/matthiasharzer/livebuffer/buffer/stream/archived"
+	"github.com/matthiasharzer/livebuffer/buffer/stream/live"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/twitch"
@@ -95,6 +99,8 @@ type Director struct {
 	unsubscribeOnlineChannel observer.UnsubscribeFunc
 	session                  *recordingSession
 	cancelRecording          func()
+
+	liveStreamManager stream.Manager
 
 	mu sync.Mutex
 }
@@ -194,7 +200,7 @@ func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
 		if state.StartedAt != nil {
 			startedAt = *state.StartedAt
 		}
-		d.wentLive(wentLiveEvent{
+		d.wentLive(stream.WentLiveEvent{
 			Title:               state.Title,
 			BroadcasterUserName: state.BroadcasterUserName,
 			StartedAt:           startedAt,
@@ -235,7 +241,7 @@ func (d *Director) writeMetadataFile(streamBufferDir string, event wentLiveEvent
 	return nil
 }
 
-func (d *Director) wentLive(event wentLiveEvent) {
+func (d *Director) wentLive(event stream.WentLiveEvent) {
 	logging.Info("stream went live, starting recording session", "username", d.username)
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -252,17 +258,24 @@ func (d *Director) wentLive(event wentLiveEvent) {
 		return
 	}
 
-	err = d.writeMetadataFile(streamBufferDir, event)
+	manager, err := live.NewRecordingStreamManager(context.Background(), event, d.username, streamBufferDir)
 	if err != nil {
-		logging.Error("failed to write metadata file", "error", err)
+		logging.Error("failed to create recording stream manager", "error", err)
 		return
 	}
+	d.liveStreamManager = manager
 
-	streamFile := filepath.Join(streamBufferDir, streamFileName)
-	err = d.startRecording(streamFile)
-	if err != nil {
-		logging.Error("failed to start recording session", "error", err)
-	}
+	//err = d.writeMetadataFile(streamBufferDir, event)
+	//if err != nil {
+	//	logging.Error("failed to write metadata file", "error", err)
+	//	return
+	//}
+	//
+	//streamFile := filepath.Join(streamBufferDir, streamFileName)
+	//err = d.startRecording(streamFile)
+	//if err != nil {
+	//	logging.Error("failed to start recording session", "error", err)
+	//}
 }
 
 func (d *Director) startRecording(filePath string) error {
@@ -346,30 +359,104 @@ func (d *Director) readStreamInfo(streamBufferDir string) (StreamInfo, error) {
 	}, nil
 }
 
-func (d *Director) GetStreams() ([]StreamInfo, error) {
+func (d *Director) getManager(streamID string) (stream.Manager, error) {
+	if d.liveStreamManager != nil {
+		liveStreamID, err := d.liveStreamManager.StreamID()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get live stream ID: %w", err)
+		}
+		if liveStreamID == streamID {
+			return d.liveStreamManager, nil
+		}
+	}
+
+	for manager, err := range d.getArchivedStreamManagers() {
+		if err != nil {
+			return nil, fmt.Errorf("failed to get archived stream managers: %w", err)
+		}
+		managerStreamID, err := manager.StreamID()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get archived stream ID: %w", err)
+		}
+		if managerStreamID == streamID {
+			return manager, nil
+		}
+	}
+	return nil, nil
+}
+
+func (d *Director) getArchivedStreamManagers() iter.Seq2[stream.Manager, error] {
+	return func(yield func(stream.Manager, error) bool) {
+		var liveStreamID string
+		var err error
+		if d.liveStreamManager != nil {
+			liveStreamID, err = d.liveStreamManager.StreamID()
+			if err != nil {
+				yield(nil, fmt.Errorf("failed to get live stream ID: %w", err))
+				return
+			}
+		}
+
+		dirEntries, err := os.ReadDir(d.bufferDirectory)
+		if err != nil {
+			yield(nil, fmt.Errorf("failed to list buffer files: %w", err))
+			return
+		}
+		for _, entry := range dirEntries {
+			if !entry.IsDir() {
+				continue
+			}
+			streamDirectory := filepath.Join(d.bufferDirectory, entry.Name())
+			metadata, err := stream.ReadMetadata(streamDirectory)
+			if err != nil {
+				logging.Error("failed to read metadata for stream", "stream", entry.Name(), "error", err)
+				continue
+			}
+			if metadata.ID == liveStreamID {
+				continue // skip the live stream, we already added it
+			}
+			manager, err := archived.NewStreamManager(streamDirectory)
+			if err != nil {
+				logging.Error("failed to create stream manager for archived stream", "stream", entry.Name(), "error", err)
+				continue
+			}
+			if !yield(manager, nil) {
+				break
+			}
+		}
+	}
+}
+
+func (d *Director) GetStreams() ([]stream.Info, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	dirEntries, err := os.ReadDir(d.bufferDirectory)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list buffer files: %w", err)
+	var streams []stream.Info
+	if d.liveStreamManager != nil {
+		streamInfo, err := d.liveStreamManager.StreamInfo()
+		if err != nil {
+			logging.Warn("failed to get stream info from live stream manager", "error", err)
+		} else {
+			streams = append(streams, streamInfo)
+		}
 	}
-	var streams []StreamInfo
-	for _, entry := range dirEntries {
-		if !entry.IsDir() {
+
+	for manager, err := range d.getArchivedStreamManagers() {
+		if err != nil {
+			logging.Warn("failed to get archived stream manager", "error", err)
 			continue
 		}
+		defer funcutils.LogError(manager.Close, "failed to close archived stream manager")
 
-		streamBufferDir := filepath.Join(d.bufferDirectory, entry.Name())
-		streamInfo, err := d.readStreamInfo(streamBufferDir)
+		streamInfo, err := manager.StreamInfo()
 		if err != nil {
-			logging.Error("failed to read stream info", "error", err)
+			logging.Error("failed to get stream info from manager", "error", err)
 			continue
 		}
 		streams = append(streams, streamInfo)
 	}
 
-	slices.SortStableFunc(streams, func(a, b StreamInfo) int {
+	slices.SortStableFunc(streams, func(a, b stream.Info) int {
 		return a.StartedAt.Compare(b.StartedAt)
 	})
 
