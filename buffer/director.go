@@ -59,7 +59,7 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string, on
 	}
 
 	if !ffmpegutil.IsInstalled() {
-		return nil, errors.New("ffmpeg is not installed. Please install ffmpeg to use the director")
+		return nil, errors.New("ffmpeg and ffprobe are required. Please install both to use the director")
 	}
 
 	bufferDir := filepath.Join(bufferBaseDirectory, username)
@@ -88,10 +88,42 @@ func (d *Director) subscribeToOnlineChannel() {
 	d.unsubscribeOnlineChannel = d.onlineChannel.Subscribe(d.onlineStateChanged)
 }
 
+func (d *Director) cleanupUnknownDirectories(knownStreamDirectories []string) error {
+	dirEntries, err := os.ReadDir(d.bufferDirectory)
+	if err != nil {
+		return fmt.Errorf("failed to list buffer directory: %w", err)
+	}
+
+	for _, entry := range dirEntries {
+		if !entry.IsDir() {
+			continue
+		}
+		streamDir := filepath.Join(d.bufferDirectory, entry.Name())
+		if !slices.Contains(knownStreamDirectories, streamDir) {
+			err := os.RemoveAll(streamDir)
+			if err != nil {
+				logging.Warn("failed to delete unknown stream directory", "directory", streamDir, "error", err)
+				continue
+			}
+			logging.Info("deleted unknown stream directory", "directory", streamDir)
+		}
+	}
+	return nil
+}
+
 func (d *Director) cleanupFiles() error {
 	streams, err := d.getStreamsSortedByStartTime()
 	if err != nil {
 		return fmt.Errorf("failed to read streams: %w", err)
+	}
+
+	var knownStreamDirectories []string
+	for _, streamInfo := range streams {
+		knownStreamDirectories = append(knownStreamDirectories, streamInfo.Directory)
+	}
+	err = d.cleanupUnknownDirectories(knownStreamDirectories)
+	if err != nil {
+		return fmt.Errorf("failed to cleanup unknown directories: %w", err)
 	}
 
 	if len(streams) <= d.maxStreams {
@@ -154,7 +186,7 @@ func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
 }
 
 func (d *Director) wentLive(event stream.WentLiveEvent) {
-	logging.Info("stream went live, starting recording session", "username", d.username)
+	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -167,20 +199,20 @@ func (d *Director) wentLive(event stream.WentLiveEvent) {
 		d.liveStreamManager = nil
 	}
 
-	streamBufferDir := filepath.Join(d.bufferDirectory, fmt.Sprintf("%s_%s", d.username, event.StartedAt.Format("20060102_150405")))
+	streamBufferDir := filepath.Join(d.bufferDirectory, fmt.Sprintf("%s_%s", event.BroadcasterUserName, event.StartedAt.Format("20060102_150405")))
 	err := os.MkdirAll(streamBufferDir, 0777)
 	if err != nil {
 		logging.Error("failed to create stream buffer directory", "error", err)
 		return
 	}
 
-	manager, err := live.NewRecordingStreamManager(context.Background(), event, d.username, streamBufferDir)
+	manager, err := live.NewRecordingStreamManager(context.Background(), event, streamBufferDir)
 	if err != nil {
 		logging.Error("failed to create recording stream manager", "error", err)
 		return
 	}
 	d.liveStreamManager = manager
-	logging.Info("started recording session", "username", d.username, "stream_id", manager.StreamID())
+	logging.Info("started recording session", "username", event.BroadcasterUserName, "stream_id", manager.StreamID())
 
 	err = d.cleanupFiles()
 	if err != nil {

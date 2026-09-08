@@ -8,7 +8,7 @@ type Response struct {
 
 type ResponseStream struct {
 	ID                  string    `json:"id"`
-	Title               string    `json:"name"`
+	Title               string    `json:"title"`
 	Size                int64     `json:"size"`
 	Duration            string    `json:"duration"`
 	StartedAt           time.Time `json:"started_at"`

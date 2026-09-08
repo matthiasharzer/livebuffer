@@ -55,6 +55,12 @@ func (vs *VideoFileBuffer) Close() error {
 	return vs.writeHandle.Close()
 }
 
+func (vs *VideoFileBuffer) Size() int64 {
+	vs.mu.RLock()
+	defer vs.mu.RUnlock()
+	return vs.size
+}
+
 func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadCloser, int64, error) {
 	// How much did we write to the file?
 	vs.mu.RLock()

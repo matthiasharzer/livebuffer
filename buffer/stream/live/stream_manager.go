@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/matthiasharzer/livebuffer/buffer/stream"
+	"github.com/matthiasharzer/livebuffer/logging"
 )
 
 type StreamManager struct {
@@ -15,26 +17,34 @@ type StreamManager struct {
 	session         *recordingSession
 }
 
-func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, username string, streamDirectory string) (*StreamManager, error) {
-	id := fmt.Sprintf("%s_%s", username, event.StartedAt.Format("20060102_150405"))
+func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, streamDirectory string) (*StreamManager, error) {
+	id := fmt.Sprintf("%s_%s", event.BroadcasterUserName, event.StartedAt.Format("20060102_150405"))
 	err := stream.WriteMetadata(streamDirectory, stream.Metadata{
 		ID:                  id,
 		Title:               event.Title,
-		BroadcasterUserName: username,
+		BroadcasterUserName: event.BroadcasterUserName,
 		StartedAt:           event.StartedAt,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	session, err := newRecordingSession(username, stream.File(streamDirectory))
+	session, err := newRecordingSession(event.BroadcasterUserName, stream.File(streamDirectory))
 	if err != nil {
+		cleanupErr := os.Remove(stream.MetadataFile(streamDirectory))
+		if cleanupErr != nil {
+			logging.Warn("failed to clean up metadata file after session creation error", "metadataFile", stream.MetadataFile(streamDirectory), "error", cleanupErr)
+		}
 		return nil, err
 	}
 	recordingContext, cancel := context.WithCancel(ctx)
 	err = session.Start(recordingContext)
 	if err != nil {
 		cancel()
+		cleanupErr := os.Remove(stream.MetadataFile(streamDirectory))
+		if cleanupErr != nil {
+			logging.Warn("failed to clean up metadata file after session creation error", "metadataFile", stream.MetadataFile(streamDirectory), "error", cleanupErr)
+		}
 		return nil, err
 	}
 
@@ -47,7 +57,7 @@ func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, 
 }
 
 func (sm *StreamManager) StreamInfo() (stream.Info, error) {
-	size := sm.session.buffer.size
+	size := sm.session.buffer.Size()
 	return stream.BuildInfo(sm.streamDirectory, size, stream.StreamStateLive)
 }
 

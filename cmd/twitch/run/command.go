@@ -118,7 +118,7 @@ var Command = &cobra.Command{
 		}
 		defer funcutils.LogError(twitchClient.Close, "failed to close twitch client")
 
-		director, err := buffer.NewDirector(maxStreams, bufferDirectory, username, twitchClient.OnlineChannel())
+		director, err := buffer.NewDirector(maxStreams, bufferDirectory, twitchClient.Username(), twitchClient.OnlineChannel())
 		if err != nil {
 			return fmt.Errorf("failed to create director: %w", err)
 		}
