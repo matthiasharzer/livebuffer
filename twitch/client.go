@@ -126,6 +126,27 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 	}
 }
 
+func (c *Client) handleInitialStreamState() error {
+	stream, err := c.getCurrentUserStream()
+	if err != nil {
+		return fmt.Errorf("failed to get current user stream: %w", err)
+	}
+	if stream == nil {
+		logging.Info("user is currently offline", "user", c.username)
+		return nil
+	}
+
+	c.onlineChannel.Publish(StreamOnlineState{
+		StreamID:            stream.ID,
+		IsOnline:            true,
+		BroadcasterUserName: c.username,
+		Title:               stream.Title,
+		StartedAt:           &stream.StartedAt,
+	})
+
+	return nil
+}
+
 func (c *Client) getCurrentUserStream() (*helix.Stream, error) {
 	response, err := c.helixClient.GetStreams(&helix.StreamsParams{
 		UserIDs: []string{c.userID},
@@ -153,6 +174,10 @@ func (c *Client) StartEventSub() error {
 		return fmt.Errorf("failed to start eventsub client: %w", err)
 	}
 	c.unsubscribeEventSub = c.eventSubClient.Events().Subscribe(c.handleEventSubNotification)
+	err = c.handleInitialStreamState()
+	if err != nil {
+		return fmt.Errorf("failed to process initial stream state: %w", err)
+	}
 	return nil
 }
 
