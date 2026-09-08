@@ -39,6 +39,10 @@ func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, 
 	err = session.Start(recordingContext)
 	if err != nil {
 		cancel()
+		sessionCloseErr := session.Close()
+		if sessionCloseErr != nil {
+			logging.Warn("failed to close recording session after start error", "error", sessionCloseErr)
+		}
 		cleanupErr := os.Remove(stream.MetadataFile(streamDirectory))
 		if cleanupErr != nil {
 			logging.Warn("failed to clean up metadata file after session creation error", "metadataFile", stream.MetadataFile(streamDirectory), "error", cleanupErr)
