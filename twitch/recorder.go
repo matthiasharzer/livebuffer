@@ -34,7 +34,14 @@ func NewRecorder(username string) (*Recorder, error) {
 func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	streamlinkCmd := exec.CommandContext(ctx, "streamlink", "--stdout", "twitch.tv/"+r.username, "best")
+	args := []string{
+		"--ffmpeg-copyts",
+		"--ffmpeg-start-at-zero",
+		"--stdout",
+		"twitch.tv/" + r.username,
+		"best",
+	}
+	streamlinkCmd := exec.CommandContext(ctx, "streamlink", args...)
 
 	reader, err := streamlinkCmd.StdoutPipe()
 	if err != nil {

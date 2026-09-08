@@ -1,4 +1,4 @@
-package buffer
+package live
 
 import (
 	"context"

@@ -5,24 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
+	"github.com/matthiasharzer/livebuffer/buffer/stream"
+	"github.com/matthiasharzer/livebuffer/buffer/stream/archived"
+	"github.com/matthiasharzer/livebuffer/buffer/stream/live"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/twitch"
-	"github.com/matthiasharzer/livebuffer/util/fsutil"
-	"github.com/matthiasharzer/livebuffer/util/funcutils"
+	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
 )
-
-func isFfmpegInstalled() bool {
-	command := exec.Command("ffmpeg", "-h")
-	err := command.Run()
-	return err == nil
-}
 
 type ffmpegReadCloser struct {
 	io.ReadCloser
@@ -50,8 +48,7 @@ type Director struct {
 	username                 string
 	onlineChannel            observer.ReadonlyChannel[twitch.StreamOnlineState]
 	unsubscribeOnlineChannel observer.UnsubscribeFunc
-	session                  *recordingSession
-	cancelRecording          func()
+	liveStreamManager        *live.StreamManager
 
 	mu sync.Mutex
 }
@@ -61,8 +58,8 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string, on
 		return nil, errors.New("maxStreams must be greater than 0")
 	}
 
-	if !isFfmpegInstalled() {
-		return nil, errors.New("ffmpeg is not installed. Please install ffmpeg to use the director")
+	if !ffmpegutil.IsInstalled() {
+		return nil, errors.New("ffmpeg and ffprobe are required. Please install both to use the director")
 	}
 
 	bufferDir := filepath.Join(bufferBaseDirectory, username)
@@ -76,13 +73,11 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string, on
 		bufferDirectory: bufferDir,
 		username:        username,
 		onlineChannel:   onlineChannel,
-		session:         nil,
-		cancelRecording: nil,
 		mu:              sync.Mutex{},
 	}
 	err = director.cleanupFiles()
 	if err != nil {
-		return nil, fmt.Errorf("failed to initially cleanup buffer files: %w", err)
+		return nil, err
 	}
 
 	director.subscribeToOnlineChannel()
@@ -93,50 +88,120 @@ func (d *Director) subscribeToOnlineChannel() {
 	d.unsubscribeOnlineChannel = d.onlineChannel.Subscribe(d.onlineStateChanged)
 }
 
-func (d *Director) cleanupFiles() error {
-	files, err := fsutil.ListFilesOrdered(d.bufferDirectory)
+func (d *Director) cleanupUnknownDirectories(knownStreamDirectories []string) error {
+	dirEntries, err := os.ReadDir(d.bufferDirectory)
 	if err != nil {
-		return fmt.Errorf("failed to list buffer files: %w", err)
+		return fmt.Errorf("failed to list buffer directory: %w", err)
 	}
 
-	if len(files) <= d.maxStreams {
+	for _, entry := range dirEntries {
+		if !entry.IsDir() {
+			continue
+		}
+		streamDir := filepath.Join(d.bufferDirectory, entry.Name())
+		if !slices.Contains(knownStreamDirectories, streamDir) {
+			err := os.RemoveAll(streamDir)
+			if err != nil {
+				logging.Warn("failed to delete unknown stream directory", "directory", streamDir, "error", err)
+				continue
+			}
+			logging.Info("deleted unknown stream directory", "directory", streamDir)
+		}
+	}
+	return nil
+}
+
+func (d *Director) cleanupFiles() error {
+	dirEntries, err := os.ReadDir(d.bufferDirectory)
+	if err != nil {
+		return fmt.Errorf("failed to list buffer directory: %w", err)
+	}
+
+	var knownStreamDirectories []string
+
+	type basicStreamInfo struct {
+		stream.Metadata
+		Directory string
+	}
+
+	var streams []basicStreamInfo
+	for _, entry := range dirEntries {
+		if !entry.IsDir() {
+			continue
+		}
+		streamDirectory := filepath.Join(d.bufferDirectory, entry.Name())
+		meta, err := stream.ReadMetadata(streamDirectory)
+		if err != nil {
+			logging.Warn("failed to read metadata for stream directory", "directory", entry.Name(), "error", err)
+			continue
+		}
+		streams = append(streams, basicStreamInfo{
+			Metadata:  meta,
+			Directory: streamDirectory,
+		})
+		knownStreamDirectories = append(knownStreamDirectories, streamDirectory)
+	}
+	err = d.cleanupUnknownDirectories(knownStreamDirectories)
+	if err != nil {
+		logging.Warn("failed to cleanup unknown directories", "error", err)
+	}
+
+	slices.SortStableFunc(streams, func(a, b basicStreamInfo) int {
+		return a.StartedAt.Compare(b.StartedAt)
+	})
+
+	if len(streams) <= d.maxStreams {
 		return nil
 	}
 
-	filesToDelete := files[:len(files)-d.maxStreams]
-	for _, fileName := range filesToDelete {
-		filePath := filepath.Join(d.bufferDirectory, fileName)
-		err := os.Remove(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to delete buffer file %s: %w", fileName, err)
+	var liveStreamID string
+	if d.liveStreamManager != nil {
+		liveStreamID = d.liveStreamManager.StreamID()
+	}
+
+	streamsToDelete := streams[:len(streams)-d.maxStreams]
+	for _, streamInfo := range streamsToDelete {
+		if streamInfo.ID == liveStreamID {
+			// This should never happen, but just in case, we skip deleting the live stream
+			logging.Warn("skipping deletion of live stream", "stream", streamInfo.ID, "directory", streamInfo.Directory)
+			continue
 		}
-		logging.Info("deleted buffer file", "file", fileName)
+		err := os.RemoveAll(streamInfo.Directory)
+		if err != nil {
+			return fmt.Errorf("failed to delete buffered stream %s: %w", streamInfo.Directory, err)
+		}
+		logging.Info("deleted buffered stream", "stream", streamInfo.ID, "directory", streamInfo.Directory)
 	}
 	return nil
 }
 
 func (d *Director) stopRecordingStop() error {
 	logging.Info("stopping recording session", "username", d.username)
-	if d.cancelRecording != nil {
-		d.cancelRecording()
-		d.cancelRecording = nil
-	}
-	if d.session != nil {
-		err := d.session.Close()
+	if d.liveStreamManager != nil {
+		err := d.liveStreamManager.Close()
 		if err != nil {
-			logging.Error("failed to close recording session", "error", err)
+			logging.Error("failed to close live stream manager", "error", err)
 		}
-		d.session = nil
+		d.liveStreamManager = nil
 	}
-
 	return d.cleanupFiles()
 }
 
-func (d *Director) createRecordingContext() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
-	return ctx, func() {
-		cancel()
-		d.cancelRecording = nil // we are the cancel function, so we clear it here
+func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
+	if state.IsOnline {
+		startedAt := time.Now()
+		if state.StartedAt != nil {
+			startedAt = *state.StartedAt
+		}
+		d.wentLive(stream.WentLiveEvent{
+			StreamID:            state.StreamID,
+			Title:               state.Title,
+			BroadcasterUserName: d.username,
+			StartedAt:           startedAt,
+		})
+	} else {
+		d.mu.Lock()
+		defer d.mu.Unlock()
 
 		err := d.stopRecordingStop()
 		if err != nil {
@@ -145,124 +210,189 @@ func (d *Director) createRecordingContext() (context.Context, context.CancelFunc
 	}
 }
 
-func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
-	if state.IsOnline {
-		d.wentLive()
-	} else {
-		d.mu.Lock()
-		defer d.mu.Unlock()
+func (d *Director) wentLive(event stream.WentLiveEvent) {
+	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName)
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
-		if d.cancelRecording != nil {
-			d.cancelRecording()
-			d.cancelRecording = nil
+	if d.liveStreamManager != nil {
+		if d.liveStreamManager.StreamID() == event.StreamID {
+			logging.Warn("received went live event for stream that is already being recorded (ignoring)", "stream_id", event.StreamID)
+			return
+		}
+		err := d.liveStreamManager.Close()
+		if err != nil {
+			logging.Error("failed to close existing live stream manager", "error", err)
+			return
+		}
+		d.liveStreamManager = nil
+	}
+
+	streamBufferDir := filepath.Join(d.bufferDirectory, fmt.Sprintf("%s_%s", event.BroadcasterUserName, event.StartedAt.Format("20060102_150405")))
+	err := os.MkdirAll(streamBufferDir, 0777)
+	if err != nil {
+		logging.Error("failed to create stream buffer directory", "error", err)
+		return
+	}
+
+	manager, err := live.NewRecordingStreamManager(context.Background(), event, streamBufferDir)
+	if err != nil {
+		logging.Error("failed to create recording stream manager", "error", err)
+		return
+	}
+	d.liveStreamManager = manager
+	logging.Info("started recording session", "username", event.BroadcasterUserName, "stream_id", manager.StreamID())
+
+	err = d.cleanupFiles()
+	if err != nil {
+		logging.Warn("failed to cleanup files", "error", err)
+	}
+}
+
+func (d *Director) getManager(streamID string) (stream.Manager, error) {
+	for manager, err := range d.readStreamManagers() {
+		if err != nil {
+			return nil, fmt.Errorf("failed to get stream managers: %w", err)
+		}
+		if streamID == manager.StreamID() {
+			return manager, nil
+		}
+	}
+	return nil, nil
+}
+
+func (d *Director) getManagerFromFolderName(folderName string) (stream.Manager, error) {
+	streamDirectory := filepath.Join(d.bufferDirectory, folderName)
+	metadata, err := stream.ReadMetadata(streamDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read metadata for stream: %w", err)
+	}
+	if d.liveStreamManager != nil {
+		liveStreamID := d.liveStreamManager.StreamID()
+		if metadata.ID == liveStreamID {
+			return d.liveStreamManager, nil
+		}
+	}
+
+	manager, err := archived.NewStreamManager(streamDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stream manager for archived stream: %w", err)
+	}
+	return manager, nil
+}
+
+func (d *Director) readStreamManagers() iter.Seq2[stream.Manager, error] {
+	return func(yield func(stream.Manager, error) bool) {
+		dirEntries, err := os.ReadDir(d.bufferDirectory)
+		if err != nil {
+			yield(nil, fmt.Errorf("failed to list streams: %w", err))
+			return
+		}
+		for _, entry := range dirEntries {
+			if !entry.IsDir() {
+				continue
+			}
+			manager, err := d.getManagerFromFolderName(entry.Name())
+			if err != nil {
+				logging.Warn("failed to get stream manager for stream", "stream", entry.Name(), "error", err)
+				continue
+			}
+			if !yield(manager, nil) {
+				break
+			}
 		}
 	}
 }
 
-func (d *Director) wentLive() {
-	logging.Info("stream went live, starting recording session", "username", d.username)
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.cancelRecording != nil {
-		d.cancelRecording()
-		d.cancelRecording = nil
-	}
-
-	err := d.startRecording()
-	if err != nil {
-		logging.Error("failed to start recording session", "error", err)
+func (d *Director) readStreamInfos() iter.Seq2[stream.Info, error] {
+	return func(yield func(stream.Info, error) bool) {
+		for manager, err := range d.readStreamManagers() {
+			if err != nil {
+				yield(stream.Info{}, err)
+				return
+			}
+			streamInfo, err := manager.StreamInfo()
+			if err != nil {
+				logging.Warn("failed to get stream info from manager", "stream", streamInfo.Title, "error", err)
+				continue
+			}
+			if !yield(streamInfo, nil) {
+				break
+			}
+		}
 	}
 }
 
-func (d *Director) startRecording() error {
-	if d.session != nil {
-		return fmt.Errorf("recording session already exists")
+func (d *Director) getStreamsSortedByStartTime() ([]stream.Info, error) {
+	var streams []stream.Info
+	for streamInfo, err := range d.readStreamInfos() {
+		if err != nil {
+			return nil, fmt.Errorf("failed to read stream infos: %w", err)
+		}
+		streams = append(streams, streamInfo)
 	}
 
-	ctx, cancel := d.createRecordingContext()
-	d.cancelRecording = cancel
+	slices.SortStableFunc(streams, func(a, b stream.Info) int {
+		return a.StartedAt.Compare(b.StartedAt)
+	})
 
-	bufferFilePath := filepath.Join(d.bufferDirectory, fmt.Sprintf("%s_%d.ts", d.username, time.Now().Unix()))
-	session, err := newRecordingSession(d.username, bufferFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to create recording session: %w", err)
-	}
-	err = session.Start(ctx)
-	if err != nil {
-		funcutils.LogError(session.Close, "failed to close recording session after start error")
-		return fmt.Errorf("failed to start recording session: %w", err)
-	}
-
-	d.session = session
-	return nil
-}
-
-func (d *Director) GetStreams() ([]string, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	files, err := fsutil.ListFilesOrdered(d.bufferDirectory)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list buffer files: %w", err)
-	}
-	var streams []string
-	for _, file := range files {
-		fileName := filepath.Base(file)
-		fileNameWithoutExt := fileName[:len(fileName)-len(filepath.Ext(fileName))]
-		streams = append(streams, fileNameWithoutExt)
-	}
 	return streams, nil
 }
 
-func (d *Director) resolveStreamPath(streamName string) (string, error) {
-	if streamName == "" || streamName == "." || streamName == ".." || filepath.Base(streamName) != streamName {
-		return "", fmt.Errorf("invalid stream_id")
-	}
-
-	streamPath := filepath.Join(d.bufferDirectory, streamName+".ts")
-	_, err := os.Stat(streamPath)
-	if os.IsNotExist(err) {
-		return "", nil
-	} else if err != nil {
-		return "", fmt.Errorf("failed to stat stream %s: %w", streamName, err)
-	}
-	return streamPath, nil
+func (d *Director) GetStreams() ([]stream.Info, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.getStreamsSortedByStartTime()
 }
 
-func (d *Director) GetStream(streamName string) (io.ReadCloser, error) {
+func (d *Director) GetStream(streamID string) (stream.Info, io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamPath, err := d.resolveStreamPath(streamName)
+	streamManager, err := d.getManager(streamID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve stream path: %w", err)
+		return stream.Info{}, nil, fmt.Errorf("failed to get stream manager: %w", err)
 	}
-	if streamPath == "" {
-		return nil, nil
+	if streamManager == nil {
+		return stream.Info{}, nil, nil
 	}
 
-	if d.session != nil && d.session.FilePath() == streamPath {
-		return d.session.buffer.NewSnapshotReader()
+	streamInfo, err := streamManager.StreamInfo()
+	if err != nil {
+		return stream.Info{}, nil, fmt.Errorf("failed to get stream info: %w", err)
 	}
 
-	f, err := os.Open(streamPath)
+	reader, size, err := streamManager.Reader()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open stream %s: %w", streamName, err)
+		return stream.Info{}, nil, fmt.Errorf("failed to get stream reader: %w", err)
 	}
-	return f, nil
+	streamInfo.Size = size
+	return streamInfo, reader, nil
 }
 
-func (d *Director) GetClip(streamName string, startTime, endTime time.Duration) (io.ReadCloser, error) {
+func (d *Director) GetClip(streamID string, startTime, endTime time.Duration) (stream.ClipInfo, io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamPath, err := d.resolveStreamPath(streamName)
+	streamManager, err := d.getManager(streamID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve stream path: %w", err)
+		return stream.ClipInfo{}, nil, fmt.Errorf("failed to get stream manager: %w", err)
+	}
+	if streamManager == nil {
+		return stream.ClipInfo{}, nil, nil
+	}
+
+	streamInfo, err := streamManager.StreamInfo()
+	if err != nil {
+		return stream.ClipInfo{}, nil, fmt.Errorf("failed to get stream info: %w", err)
+	}
+
+	streamPath, err := streamManager.StreamFilePath()
+	if err != nil {
+		return stream.ClipInfo{}, nil, fmt.Errorf("failed to resolve stream path: %w", err)
 	}
 	if streamPath == "" {
-		return nil, nil
+		return stream.ClipInfo{}, nil, nil
 	}
 
 	startStr := fmt.Sprintf("%.3f", startTime.Seconds())
@@ -281,18 +411,25 @@ func (d *Director) GetClip(streamName string, startTime, endTime time.Duration) 
 	cmd := exec.Command("ffmpeg", args...)
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdout pipe for ffmpeg: %w", err)
+		return stream.ClipInfo{}, nil, fmt.Errorf("failed to create stdout pipe for ffmpeg: %w", err)
 	}
 
 	err = cmd.Start()
 	if err != nil {
-		return nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
+		return stream.ClipInfo{}, nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
 	}
 
-	return &ffmpegReadCloser{
+	readCloser := ffmpegReadCloser{
 		ReadCloser: stdoutPipe,
 		cmd:        cmd,
-	}, nil
+	}
+	clipInfo := stream.ClipInfo{
+		Stream:    streamInfo,
+		StartTime: startTime,
+		EndTime:   endTime,
+		Duration:  endTime - startTime,
+	}
+	return clipInfo, &readCloser, nil
 }
 
 func (d *Director) Close() error {
@@ -303,6 +440,5 @@ func (d *Director) Close() error {
 		d.unsubscribeOnlineChannel()
 		d.unsubscribeOnlineChannel = nil
 	}
-
 	return d.stopRecordingStop()
 }

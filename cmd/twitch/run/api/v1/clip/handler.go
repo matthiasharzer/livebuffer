@@ -1,6 +1,7 @@
 package clip
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -44,23 +45,23 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			return
 		}
 
-		clip, err := directory.GetClip(streamID, start, end)
+		clipInfo, clipReader, err := directory.GetClip(streamID, start, end)
 		if err != nil {
 			logging.Error("failed to retrieve stream", "error", err)
 			http.Error(w, "failed to retrieve stream", http.StatusInternalServerError)
 			return
 		}
-		if clip == nil {
+		if clipReader == nil {
 			http.Error(w, "stream not found", http.StatusNotFound)
 			return
 		}
-		defer funcutils.LogError(clip.Close, "failed to close stream")
+		defer funcutils.LogError(clipReader.Close, "failed to close stream")
 
-		responseFileName := streamID + "_" + startStr + "_" + endStr + ".ts"
+		responseFileName := fmt.Sprintf("%s_%s_%s_to_%s.ts", clipInfo.Stream.BroadcasterUserName, streamID, startStr, endStr)
 		w.Header().Set("Content-Type", "video/mp4")
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+responseFileName+"\"")
 
-		_, err = io.Copy(w, clip)
+		_, err = io.Copy(w, clipReader)
 		if err != nil {
 			logging.Error("failed to stream video", "error", err)
 			http.Error(w, "failed to stream video", http.StatusInternalServerError)

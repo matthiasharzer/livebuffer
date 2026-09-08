@@ -14,6 +14,7 @@ import (
 )
 
 type StreamOnlineState struct {
+	StreamID            string
 	IsOnline            bool
 	BroadcasterUserName string
 	Title               string
@@ -23,11 +24,13 @@ type StreamOnlineState struct {
 type streamOnlineOfflineEventPayload struct {
 	ID                  string    `json:"id"`
 	BroadcasterUserName string    `json:"broadcaster_user_name"`
+	BroadcasterUserID   string    `json:"broadcaster_user_id"`
 	StartedAt           time.Time `json:"started_at"`
 }
 
 type Client struct {
-	userID string
+	userID   string
+	username string
 
 	unsubscribeEventSub observer.UnsubscribeFunc
 	helixClient         *helix.Client
@@ -35,7 +38,7 @@ type Client struct {
 	onlineChannel       observer.ReadWriteChannel[StreamOnlineState]
 }
 
-func NewClient(clientID, clientSecret, userName string, evenSubURL url.URL, eventSubSecret string) (*Client, error) {
+func NewClient(clientID, clientSecret, username string, evenSubURL url.URL, eventSubSecret string) (*Client, error) {
 	helixClient, err := helix.NewClient(&helix.Options{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
@@ -54,7 +57,7 @@ func NewClient(clientID, clientSecret, userName string, evenSubURL url.URL, even
 	helixClient.SetAppAccessToken(accessTokenResponse.Data.AccessToken)
 
 	response, err := helixClient.GetUsers(&helix.UsersParams{
-		Logins: []string{userName},
+		Logins: []string{username},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
@@ -63,9 +66,10 @@ func NewClient(clientID, clientSecret, userName string, evenSubURL url.URL, even
 		return nil, fmt.Errorf("failed to get user: status code %d", response.StatusCode)
 	}
 	if len(response.Data.Users) == 0 {
-		return nil, fmt.Errorf("user '%s' not found", userName)
+		return nil, fmt.Errorf("user '%s' not found", username)
 	}
 	userID := response.Data.Users[0].ID
+	userLogin := response.Data.Users[0].Login
 	eventSubClient := eventsub.NewClient(
 		helixClient,
 		userID,
@@ -76,6 +80,7 @@ func NewClient(clientID, clientSecret, userName string, evenSubURL url.URL, even
 
 	return &Client{
 		userID:         userID,
+		username:       userLogin,
 		helixClient:    helixClient,
 		eventSubClient: eventSubClient,
 		onlineChannel:  observer.NewChannel[StreamOnlineState](),
@@ -89,6 +94,10 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 		err := json.Unmarshal(notification.Event, &payload)
 		if err != nil {
 			logging.Error("failed to unmarshal payload for event", "type", notification.Subscription.Type, "error", err)
+			return
+		}
+		if payload.BroadcasterUserID != c.userID {
+			logging.Warn("received event for different user", "type", notification.Subscription.Type, "broadcaster_user_id", payload.BroadcasterUserID, "broadcaster_user_name", payload.BroadcasterUserName)
 			return
 		}
 		stream, err := c.getCurrentUserStream()
@@ -106,6 +115,7 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 
 		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "title", streamTitle, "started_at", payload.StartedAt)
 		c.onlineChannel.Publish(StreamOnlineState{
+			StreamID:            payload.ID,
 			IsOnline:            notification.Subscription.Type == "stream.online",
 			BroadcasterUserName: payload.BroadcasterUserName,
 			Title:               streamTitle,
@@ -152,6 +162,10 @@ func (c *Client) EventSubHTTPHandler() http.Handler {
 
 func (c *Client) OnlineChannel() observer.ReadonlyChannel[StreamOnlineState] {
 	return c.onlineChannel
+}
+
+func (c *Client) Username() string {
+	return c.username
 }
 
 func (c *Client) Close() error {
