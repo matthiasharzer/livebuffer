@@ -21,6 +21,7 @@ type Info struct {
 	StartedAt           time.Time
 	Duration            time.Duration
 	StreamState         StreamState
+	FilePath            string
 	Size                int64
 }
 
@@ -49,6 +50,7 @@ func BuildInfo(streamDirectory string, size int64, state StreamState) (Info, err
 		StartedAt:           metadata.StartedAt,
 		Duration:            duration,
 		StreamState:         state,
+		FilePath:            File(streamDirectory),
 		Size:                size,
 	}, nil
 }

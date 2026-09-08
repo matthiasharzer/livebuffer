@@ -3,6 +3,7 @@ package live
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/matthiasharzer/livebuffer/buffer/stream"
 )
@@ -14,8 +15,8 @@ type StreamManager struct {
 	session         *recordingSession
 }
 
-func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, username string, streamDirectory string) (stream.Manager, error) {
-	id := fmt.Sprintf("%s_%s", event.BroadcasterUserName, event.StartedAt.Format("20060102_150405"))
+func NewRecordingStreamManager(ctx context.Context, event stream.WentLiveEvent, username string, streamDirectory string) (*StreamManager, error) {
+	id := fmt.Sprintf("%s_%s", username, event.StartedAt.Format("20060102_150405"))
 	err := stream.WriteMetadata(streamDirectory, stream.Metadata{
 		ID:                  id,
 		Title:               event.Title,
@@ -50,8 +51,16 @@ func (sm *StreamManager) StreamInfo() (stream.Info, error) {
 	return stream.BuildInfo(sm.streamDirectory, size, stream.StreamStateLive)
 }
 
-func (sm *StreamManager) StreamID() (string, error) {
-	return sm.id, nil
+func (sm *StreamManager) StreamID() string {
+	return sm.id
+}
+
+func (sm *StreamManager) Reader() (io.ReadCloser, int64, error) {
+	return sm.session.buffer.NewSnapshotReader()
+}
+
+func (sm *StreamManager) StreamFilePath() (string, error) {
+	return stream.File(sm.streamDirectory), nil
 }
 
 func (sm *StreamManager) Close() error {

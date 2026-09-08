@@ -44,7 +44,7 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			return
 		}
 
-		clipReader, err := directory.GetClip(streamID, start, end)
+		_, clipReader, err := directory.GetClip(streamID, start, end)
 		if err != nil {
 			logging.Error("failed to retrieve stream", "error", err)
 			http.Error(w, "failed to retrieve stream", http.StatusInternalServerError)

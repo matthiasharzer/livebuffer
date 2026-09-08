@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -11,11 +12,11 @@ const fileName = "stream.ts"
 const metadataFileName = "metadata.json"
 
 func File(streamDir string) string {
-	return streamDir + "/" + fileName
+	return filepath.Join(streamDir, fileName)
 }
 
 func MetadataFile(streamDir string) string {
-	return streamDir + "/" + metadataFileName
+	return filepath.Join(streamDir, metadataFileName)
 }
 
 type Metadata struct {
