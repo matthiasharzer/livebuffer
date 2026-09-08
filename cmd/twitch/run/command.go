@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
-	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/util/fsutil"
@@ -124,7 +123,7 @@ var Command = &cobra.Command{
 		}
 		defer funcutils.LogError(director.Close, "failed to close director")
 
-		mux := api.GetMux(twitchClient, director)
+		mux := GetMux(twitchClient, director)
 
 		err = twitchClient.StartEventSub()
 		if err != nil {
