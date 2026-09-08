@@ -89,16 +89,25 @@ func (sm *StreamManager) StreamFilePath() (string, error) {
 }
 
 func (sm *StreamManager) LiveSubscribe(clientChan chan []byte) {
+	if sm.broadcaster == nil {
+		close(clientChan)
+		return
+	}
 	sm.broadcaster.AddClient(clientChan)
 }
 
 func (sm *StreamManager) LiveUnsubscribe(clientChan chan []byte) {
+	if sm.broadcaster == nil {
+		close(clientChan)
+		return
+	}
 	sm.broadcaster.RemoveClient(clientChan)
 }
 
 func (sm *StreamManager) Close() error {
 	if sm.cancelRecording != nil {
 		sm.cancelRecording()
+		sm.cancelRecording = nil
 	}
 	var errs []error
 	if sm.session != nil {
@@ -106,12 +115,14 @@ func (sm *StreamManager) Close() error {
 		if err != nil {
 			errs = append(errs, err)
 		}
+		sm.session = nil
 	}
 	if sm.broadcaster != nil {
 		err := sm.broadcaster.Close()
 		if err != nil {
 			errs = append(errs, err)
 		}
+		sm.broadcaster = nil
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)

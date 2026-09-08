@@ -3,16 +3,21 @@ package live
 import (
 	"net/http"
 
-	"github.com/docker/go-units"
 	"github.com/matthiasharzer/livebuffer/buffer"
 )
 
-const bufferSize = 1 * units.MiB
+const channelBufferChunks = 250
 
 func Handler(director *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "video/mp2t")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		flusher, canFlush := w.(http.Flusher)
+		if !canFlush {
+			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+			return
+		}
 
 		liveManager, err := director.GetLiveManager()
 		if err != nil {
@@ -26,7 +31,7 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 			return
 		}
 
-		clientChannel := make(chan []byte, bufferSize)
+		clientChannel := make(chan []byte, channelBufferChunks)
 		liveManager.LiveSubscribe(clientChannel)
 
 		defer liveManager.LiveUnsubscribe(clientChannel)
@@ -44,6 +49,7 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 				if err != nil {
 					return
 				}
+				flusher.Flush()
 			}
 		}
 	}
