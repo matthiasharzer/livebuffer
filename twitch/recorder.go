@@ -98,11 +98,8 @@ func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 func (r *Recorder) WaitFinished() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.streamlinkCmd == nil && r.ffmpegCmd == nil {
-		return errors.New("recording is not running")
-	}
-	var errs []error
 
+	var errs []error
 	if r.streamlinkCmd != nil {
 		err := r.streamlinkCmd.Wait()
 		if err != nil {
