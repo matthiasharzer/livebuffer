@@ -7,12 +7,15 @@ import (
 	"io"
 	"os/exec"
 	"sync"
+
+	"github.com/matthiasharzer/livebuffer/logging"
 )
 
 type Recorder struct {
-	username string
-	cmd      *exec.Cmd
-	mu       *sync.Mutex
+	username      string
+	streamlinkCmd *exec.Cmd
+	ffmpegCmd     *exec.Cmd
+	mu            *sync.Mutex
 }
 
 func isStreamlinkInstalled() bool {
@@ -34,25 +37,56 @@ func NewRecorder(username string) (*Recorder, error) {
 func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	args := []string{
+
+	streamlinkArgs := []string{
 		"--ffmpeg-copyts",
 		"--ffmpeg-start-at-zero",
 		"--stdout",
 		"twitch.tv/" + r.username,
 		"best",
 	}
-	streamlinkCmd := exec.CommandContext(ctx, "streamlink", args...)
+	streamlinkCmd := exec.CommandContext(ctx, "streamlink", streamlinkArgs...)
 
-	reader, err := streamlinkCmd.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create streamlink stdout pipe: %w", err)
+	// remux to mpegts using ffmpeg
+	ffmpegArgs := []string{
+		"-i", "pipe:0",
+		"-c", "copy",
+		"-f", "mpegts",
+		"pipe:1",
 	}
+	ffmpegCmd := exec.CommandContext(ctx, "ffmpeg", ffmpegArgs...)
+
+	ffmpegStdin, err := streamlinkCmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ffmpeg stdin pipe: %w", err)
+	}
+	ffmpegCmd.Stdin = ffmpegStdin
+
+	reader, err := ffmpegCmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ffmpeg stdout pipe: %w", err)
+	}
+
+	err = ffmpegCmd.Start()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
+	}
+	r.ffmpegCmd = ffmpegCmd
 
 	err = streamlinkCmd.Start()
 	if err != nil {
+		killErr := ffmpegCmd.Process.Kill()
+		if killErr != nil {
+			logging.Warn("failed to kill ffmpeg process after streamlink startup failure", "error", killErr)
+		} else {
+			waitErr := ffmpegCmd.Wait()
+			if waitErr != nil {
+				logging.Warn("failed to wait for ffmpeg process to finish after streamlink startup failure", "error", waitErr)
+			}
+		}
 		return nil, fmt.Errorf("failed to start streamlink command: %w", err)
 	}
-	r.cmd = streamlinkCmd
+	r.streamlinkCmd = streamlinkCmd
 
 	return reader, nil
 }
@@ -60,12 +94,21 @@ func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 func (r *Recorder) WaitFinished() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.cmd == nil {
-		return errors.New("streamlink command is not running")
+	if r.streamlinkCmd == nil && r.ffmpegCmd == nil {
+		return errors.New("recording is not running")
 	}
-	err := r.cmd.Wait()
+	var errs []error
+	err := r.streamlinkCmd.Wait()
 	if err != nil {
-		return fmt.Errorf("streamlink command failed: %w", err)
+		errs = append(errs, fmt.Errorf("streamlink command failed: %w", err))
+	}
+
+	err = r.ffmpegCmd.Wait()
+	if err != nil {
+		errs = append(errs, fmt.Errorf("ffmpeg command failed: %w", err))
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 	return nil
 }
