@@ -10,9 +10,11 @@ import (
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
+	"github.com/matthiasharzer/livebuffer/twitch/eventsub"
 	"github.com/matthiasharzer/livebuffer/util/fsutil"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 	"github.com/matthiasharzer/livebuffer/util/stringutil"
+	"github.com/nicklaw5/helix/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -43,7 +45,7 @@ func init() {
 	}
 }
 
-func getTwitchClient(userName, eventSubSecret string, eventSubCallbackURL url.URL) (*twitch.Client, error) {
+func getHelixClient() (*helix.Client, error) {
 	clientID := os.Getenv("TWITCH_CLIENT_ID")
 	if clientID == "" {
 		return nil, fmt.Errorf("TWITCH_CLIENT_ID is not set")
@@ -54,7 +56,34 @@ func getTwitchClient(userName, eventSubSecret string, eventSubCallbackURL url.UR
 		return nil, fmt.Errorf("TWITCH_CLIENT_SECRET is not set")
 	}
 
-	return twitch.NewClient(clientID, clientSecret, userName, eventSubCallbackURL, eventSubSecret)
+	helixClient, err := helix.NewClient(&helix.Options{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create helix client: %w", err)
+	}
+
+	return helixClient, nil
+}
+
+func getUserContext(helixClient *helix.Client, eventSubClient *eventsub.Client, username string, bufferDirectory string) (userContext, error) {
+	twitchClient, err := twitch.NewClient(helixClient, eventSubClient, username)
+	if err != nil {
+		return userContext{}, fmt.Errorf("failed to create twitch client: %w", err)
+	}
+
+	director, err := buffer.NewDirector(maxStreams, bufferDirectory, twitchClient.Username(), twitchClient.OnlineChannel())
+	if err != nil {
+		funcutils.LogError(twitchClient.Close, "failed to close twitch client on director initialization error")
+		return userContext{}, fmt.Errorf("failed to create director: %w", err)
+	}
+
+	return userContext{
+		username:     twitchClient.Username(),
+		twitchClient: twitchClient,
+		director:     director,
+	}, nil
 }
 
 var Command = &cobra.Command{
@@ -111,21 +140,21 @@ var Command = &cobra.Command{
 
 		logging.Info("using eventsub callback URL", "url", eventSubURL.String())
 
-		twitchClient, err := getTwitchClient(username, eventSubSecret, *eventSubURL)
+		helixClient, err := getHelixClient()
 		if err != nil {
-			return fmt.Errorf("failed to create twitch client: %w", err)
+			return err
 		}
-		defer funcutils.LogError(twitchClient.Close, "failed to close twitch client")
+		eventSubClient := eventsub.NewClient(helixClient, *eventSubURL, eventSubSecret)
 
-		director, err := buffer.NewDirector(maxStreams, bufferDirectory, twitchClient.Username(), twitchClient.OnlineChannel())
+		context, err := getUserContext(helixClient, eventSubClient, username, bufferDirectory)
 		if err != nil {
-			return fmt.Errorf("failed to create director: %w", err)
+			return fmt.Errorf("failed to create user context for %s: %w", username, err)
 		}
-		defer funcutils.LogError(director.Close, "failed to close director")
+		defer funcutils.LogError(context.Close, fmt.Sprintf("failed to close user context of %s", username))
 
-		mux := GetMux(twitchClient, director)
+		mux := GetMux([]userContext{context}, eventSubClient.HTTPHandler())
 
-		err = twitchClient.StartEventSub()
+		err = context.twitchClient.StartEventSub()
 		if err != nil {
 			return fmt.Errorf("failed to start eventsub: %w", err)
 		}

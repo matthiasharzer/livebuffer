@@ -15,23 +15,19 @@ import (
 const eventSubMaxPayload = 1 * units.MiB
 
 type Client struct {
-	userID            string
-	evenSubURL        url.URL
-	eventSubSecret    string
-	subscriptionTypes []string
+	eventSubURL    url.URL
+	eventSubSecret string
 
 	helixClient *helix.Client
 	events      observer.ReadWriteChannel[Notification]
 }
 
-func NewClient(helixClient *helix.Client, userID string, subscriptionTypes []string, evenSubURL url.URL, eventSubSecret string) *Client {
+func NewClient(helixClient *helix.Client, evenSubURL url.URL, eventSubSecret string) *Client {
 	return &Client{
-		userID:            userID,
-		evenSubURL:        evenSubURL,
-		eventSubSecret:    eventSubSecret,
-		subscriptionTypes: subscriptionTypes,
-		helixClient:       helixClient,
-		events:            observer.NewChannel[Notification](),
+		eventSubURL:    evenSubURL,
+		eventSubSecret: eventSubSecret,
+		helixClient:    helixClient,
+		events:         observer.NewChannel[Notification](),
 	}
 }
 
@@ -66,36 +62,36 @@ func (c *Client) getExistingEventSubSubscriptions() ([]helix.EventSubSubscriptio
 	return subscriptions, nil
 }
 
-func (c *Client) isMatchingEventSubSubscription(sub helix.EventSubSubscription, subTypes []string) bool {
+func (c *Client) isMatchingEventSubSubscription(sub helix.EventSubSubscription, subTypes []string, userID string) bool {
 	if sub.Transport.Method != "webhook" {
 		return false
 	}
-	if sub.Transport.Callback != c.evenSubURL.String() {
+	if sub.Transport.Callback != c.eventSubURL.String() {
 		return false
 	}
 	if !slices.Contains(subTypes, sub.Type) {
 		return false
 	}
-	if sub.Condition.BroadcasterUserID != c.userID {
+	if sub.Condition.BroadcasterUserID != userID {
 		return false
 	}
-	if sub.Transport.Callback != c.evenSubURL.String() {
+	if sub.Transport.Callback != c.eventSubURL.String() {
 		return false
 	}
 	return true
 }
 
-func (c *Client) createEventSubSubscription(eventType string) error {
+func (c *Client) createEventSubSubscription(eventType string, userID string) error {
 	response, err := c.helixClient.CreateEventSubSubscription(&helix.EventSubSubscription{
 		Transport: helix.EventSubTransport{
 			Method:   "webhook",
-			Callback: c.evenSubURL.String(),
+			Callback: c.eventSubURL.String(),
 			Secret:   c.eventSubSecret,
 		},
 		Type:    eventType,
 		Version: "1",
 		Condition: helix.EventSubCondition{
-			BroadcasterUserID: c.userID,
+			BroadcasterUserID: userID,
 		},
 	})
 	if err != nil {
@@ -107,14 +103,14 @@ func (c *Client) createEventSubSubscription(eventType string) error {
 	return nil
 }
 
-func (c *Client) Start() error {
+func (c *Client) Start(eventSubTypes []string, userID string) error {
 	existingSubscriptions, err := c.getExistingEventSubSubscriptions()
 	if err != nil {
 		return fmt.Errorf("failed to get existing eventsub subscriptions: %w", err)
 	}
 
 	for _, sub := range existingSubscriptions {
-		if !c.isMatchingEventSubSubscription(sub, c.subscriptionTypes) {
+		if !c.isMatchingEventSubSubscription(sub, eventSubTypes, userID) {
 			continue
 		}
 
@@ -128,9 +124,9 @@ func (c *Client) Start() error {
 		}
 	}
 
-	for _, subType := range c.subscriptionTypes {
+	for _, subType := range eventSubTypes {
 		logging.Info("creating subscription for", "type", subType)
-		err = c.createEventSubSubscription(subType)
+		err = c.createEventSubSubscription(subType, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create subscription for %s: %w", subType, err)
 		}
