@@ -1,4 +1,7 @@
+.git
 .buffer
 .run
 build/
 .env
+ui/public/dist/
+ui/node_modules/

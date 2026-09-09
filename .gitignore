@@ -12,5 +12,10 @@
 # Build directory
 build/
 
+# UI
+cmd/twitch/run/ui/public/dist
+cmd/twitch/run/ui/node_modules
+
+# Dev
 .buffer
 .env
