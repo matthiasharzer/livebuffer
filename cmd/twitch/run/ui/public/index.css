@@ -1,0 +1,28 @@
+@font-face {
+	font-family: Karla;
+	src: url(./assets/fonts/Karla.ttf);
+}
+
+@font-face {
+	font-family: DMSans;
+	src: url(./assets/fonts/DMSans.ttf);
+}
+
+body {
+	-webkit-font-smoothing: antialiased;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100dvh;
+	margin: 0;
+	line-height: 1;
+	overflow: hidden;
+	overflow-y: auto;
+	scrollbar-gutter: stable both-edges;
+	color-scheme: dark;
+}
+
+:root {
+	--font-header: Karla, sans-serif;
+	--font-body: DMSans, sans-serif;
+}

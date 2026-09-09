@@ -1,0 +1,23 @@
+{
+	"name": "livebuffer-ui",
+	"version": "1.0.0",
+	"devDependencies": {
+		"@biomejs/biome": "2.5.7",
+		"esbuild": "0.28.1",
+		"typescript": "7.0.2"
+	},
+	"dependencies": {
+		"@lit/task": "1.0.3",
+		"@vaadin/router": "2.0.1",
+		"lit": "3.3.3",
+		"mpegts.js": "1.8.2"
+	},
+	"scripts": {
+		"analyze": "biome check --error-on-warnings",
+		"test": "echo \"not implemented\"",
+		"format": "biome check --write",
+		"build": "esbuild --bundle --outdir=public/dist --keep-names src/index.ts",
+		"typecheck": "tsc --noEmit",
+		"watch": "esbuild --bundle --outdir=public/dist --keep-names --sourcemap --watch src/index.ts"
+	}
+}

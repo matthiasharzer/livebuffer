@@ -1,3 +1,14 @@
+FROM node:26.7.0-trixie-slim AS build-ui
+
+WORKDIR /app
+
+COPY . .
+
+WORKDIR /app/cmd/twitch/run/ui
+
+RUN npm ci && \
+		npm run build
+
 FROM golang:1.27.1-alpine3.24 AS build
 
 ARG version=unknown
@@ -17,6 +28,7 @@ RUN go mod download && \
 		go mod verify
 
 COPY . .
+COPY --from=build-ui /app/cmd/twitch/run/ui/public ui/public
 
 RUN go build  \
     -o ../bin/livebuffer \
