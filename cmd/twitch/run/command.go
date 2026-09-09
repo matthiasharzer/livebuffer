@@ -1,6 +1,7 @@
 package run
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -88,12 +89,23 @@ func getUserContext(helixClient *helix.Client, eventSubClient *eventsub.Client, 
 
 func getUserContexts(helixClient *helix.Client, eventSubClient *eventsub.Client, usernames []string, bufferDirectory string) ([]userContext, error) {
 	var userContexts []userContext
+	seen := make(map[string]bool)
 
-	for _, username := range usernames {
+	for _, usernameArg := range usernames {
+		username := strings.ToLower(strings.TrimSpace(usernameArg))
+
+		if username == "" {
+			return nil, errors.New("twitch username cannot be empty")
+		}
+		_, isDuplicate := seen[username]
+		if isDuplicate {
+			return nil, fmt.Errorf("all provided twitch usernames must be unique. Found duplicated username %s", username)
+		}
 		context, err := getUserContext(helixClient, eventSubClient, username, bufferDirectory)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create user context for %s: %w", username, err)
 		}
+		seen[username] = true
 		userContexts = append(userContexts, context)
 	}
 

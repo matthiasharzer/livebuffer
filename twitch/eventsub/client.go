@@ -22,9 +22,9 @@ type Client struct {
 	events      observer.ReadWriteChannel[Notification]
 }
 
-func NewClient(helixClient *helix.Client, evenSubURL url.URL, eventSubSecret string) *Client {
+func NewClient(helixClient *helix.Client, eventSubURL url.URL, eventSubSecret string) *Client {
 	return &Client{
-		eventSubURL:    evenSubURL,
+		eventSubURL:    eventSubURL,
 		eventSubSecret: eventSubSecret,
 		helixClient:    helixClient,
 		events:         observer.NewChannel[Notification](),
@@ -73,9 +73,6 @@ func (c *Client) isMatchingEventSubSubscription(sub helix.EventSubSubscription, 
 		return false
 	}
 	if sub.Condition.BroadcasterUserID != userID {
-		return false
-	}
-	if sub.Transport.Callback != c.eventSubURL.String() {
 		return false
 	}
 	return true
