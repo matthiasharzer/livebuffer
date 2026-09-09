@@ -1,8 +1,8 @@
 import { css, html, type PropertyValues } from 'lit';
 import { Component } from './litutil/Component.ts';
-import { router, setRoute } from './services/router.ts';
+import { router } from './services/router.ts';
 
-const routes = [{ path: '/watch', component: 'lb-watch-view' }];
+const routes = [{ path: '/:username/watch', component: 'lb-watch-view' }];
 
 export class App extends Component {
 	static styles = css`
@@ -31,14 +31,6 @@ export class App extends Component {
 
 		router.setOutlet(routerOutlet);
 		router.setRoutes(routes);
-
-		const currentPath = window.location.pathname;
-		const matchedRoute = routes.find(route => route.path === currentPath);
-		if (matchedRoute) {
-			setRoute(currentPath);
-		} else {
-			setRoute('/watch');
-		}
 	}
 
 	render() {
