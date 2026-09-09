@@ -20,7 +20,7 @@ import (
 
 var httpPort = 4000
 var httpHost string
-var username string
+var usernames []string
 var bufferDirectoryArg string
 var liveBufferPublicURL string
 var maxStreams = 2
@@ -29,7 +29,7 @@ var eventSubSecretArg string
 func init() {
 	Command.Flags().IntVarP(&httpPort, "port", "p", httpPort, "HTTP server port")
 	Command.Flags().StringVarP(&httpHost, "host", "", "", "HTTP server host (default: all interfaces)")
-	Command.Flags().StringVarP(&username, "username", "u", "", "Twitch username to buffer (required)")
+	Command.Flags().StringSliceVarP(&usernames, "username", "u", []string{}, "Twitch username to buffer. Can be used multiple times (required)")
 	Command.Flags().StringVarP(&bufferDirectoryArg, "buffer-dir", "", bufferDirectoryArg, "Directory to store live buffer segments (default: temporary directory)")
 	Command.Flags().StringVarP(&liveBufferPublicURL, "public-url", "", "", "Public URL for the live buffer (required)")
 	Command.Flags().IntVarP(&maxStreams, "max-streams", "", maxStreams, "Maximum number of concurrent streams to buffer")
@@ -84,6 +84,20 @@ func getUserContext(helixClient *helix.Client, eventSubClient *eventsub.Client, 
 		twitchClient: twitchClient,
 		director:     director,
 	}, nil
+}
+
+func getUserContexts(helixClient *helix.Client, eventSubClient *eventsub.Client, usernames []string, bufferDirectory string) ([]userContext, error) {
+	var userContexts []userContext
+
+	for _, username := range usernames {
+		context, err := getUserContext(helixClient, eventSubClient, username, bufferDirectory)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create user context for %s: %w", username, err)
+		}
+		userContexts = append(userContexts, context)
+	}
+
+	return userContexts, nil
 }
 
 var Command = &cobra.Command{
@@ -146,18 +160,27 @@ var Command = &cobra.Command{
 		}
 		eventSubClient := eventsub.NewClient(helixClient, *eventSubURL, eventSubSecret)
 
-		context, err := getUserContext(helixClient, eventSubClient, username, bufferDirectory)
+		userContexts, err := getUserContexts(helixClient, eventSubClient, usernames, bufferDirectory)
 		if err != nil {
-			return fmt.Errorf("failed to create user context for %s: %w", username, err)
+			return err
 		}
-		defer funcutils.LogError(context.Close, fmt.Sprintf("failed to close user context of %s", username))
+		defer func() {
+			for _, context := range userContexts {
+				err := context.Close()
+				if err != nil {
+					logging.Warn("failed to close user context for", "username", context.username, "error", err)
+				}
+			}
+		}()
 
-		mux := GetMux([]userContext{context}, eventSubClient.HTTPHandler())
-
-		err = context.twitchClient.StartEventSub()
-		if err != nil {
-			return fmt.Errorf("failed to start eventsub: %w", err)
+		for _, context := range userContexts {
+			err := context.twitchClient.StartEventSub()
+			if err != nil {
+				return fmt.Errorf("failed to start event sub for user %s: %w", context.username, err)
+			}
 		}
+
+		mux := GetMux(userContexts, eventSubClient.HTTPHandler())
 
 		addr := fmt.Sprintf("%s:%d", httpHost, httpPort)
 		logging.Info("starting livebuffer server", "host", httpHost, "port", httpPort)
