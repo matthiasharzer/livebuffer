@@ -25,6 +25,32 @@ func isStreamlinkInstalled() bool {
 	return err == nil
 }
 
+func cleanupOnRecordingError(ffmpegCmd *exec.Cmd, ffmpegStdin io.ReadCloser, ffmpegStdout io.ReadCloser) {
+	if ffmpegStdin != nil {
+		closeErr := ffmpegStdin.Close()
+		if closeErr != nil {
+			logging.Warn("fialed to close ffmpeg stdin reader", "error", closeErr)
+		}
+	}
+	if ffmpegStdout != nil {
+		closeErr := ffmpegStdout.Close()
+		if closeErr != nil {
+			logging.Warn("failed to close ffmpeg stdout reader", "error", closeErr)
+		}
+	}
+	if ffmpegCmd != nil {
+		killErr := ffmpegCmd.Process.Kill()
+		if killErr != nil {
+			logging.Warn("failed to kill ffmpeg process after streamlink startup failure", "error", killErr)
+		} else {
+			waitErr := ffmpegCmd.Wait()
+			if waitErr != nil {
+				logging.Warn("failed to wait for ffmpeg process to finish after streamlink startup failure", "error", waitErr)
+			}
+		}
+	}
+}
+
 func NewRecorder(username string) (*Recorder, error) {
 	if !isStreamlinkInstalled() {
 		return nil, errors.New("streamlink is not installed. Please install streamlink to use the recorder")
@@ -66,33 +92,25 @@ func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 	}
 	ffmpegCmd.Stdin = ffmpegStdin
 
-	reader, err := ffmpegCmd.StdoutPipe()
+	ffmpegStdout, err := ffmpegCmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ffmpeg stdout pipe: %w", err)
 	}
-
 	err = ffmpegCmd.Start()
 	if err != nil {
+		cleanupOnRecordingError(nil, ffmpegStdin, ffmpegStdout)
 		return nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
 	}
 
 	err = streamlinkCmd.Start()
 	if err != nil {
-		killErr := ffmpegCmd.Process.Kill()
-		if killErr != nil {
-			logging.Warn("failed to kill ffmpeg process after streamlink startup failure", "error", killErr)
-		} else {
-			waitErr := ffmpegCmd.Wait()
-			if waitErr != nil {
-				logging.Warn("failed to wait for ffmpeg process to finish after streamlink startup failure", "error", waitErr)
-			}
-		}
+		cleanupOnRecordingError(ffmpegCmd, ffmpegStdin, ffmpegStdout)
 		return nil, fmt.Errorf("failed to start streamlink command: %w", err)
 	}
 	r.ffmpegCmd = ffmpegCmd
 	r.streamlinkCmd = streamlinkCmd
 
-	return reader, nil
+	return ffmpegStdout, nil
 }
 
 func (r *Recorder) WaitFinished() error {
@@ -113,6 +131,8 @@ func (r *Recorder) WaitFinished() error {
 			errs = append(errs, fmt.Errorf("ffmpeg command failed: %w", err))
 		}
 	}
+	r.ffmpegCmd = nil
+	r.streamlinkCmd = nil
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
