@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/matthiasharzer/livebuffer/logging"
+	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
 )
 
 type Recorder struct {
@@ -27,6 +28,9 @@ func isStreamlinkInstalled() bool {
 func NewRecorder(username string) (*Recorder, error) {
 	if !isStreamlinkInstalled() {
 		return nil, errors.New("streamlink is not installed. Please install streamlink to use the recorder")
+	}
+	if !ffmpegutil.IsInstalled() {
+		return nil, errors.New("ffmpeg is not installed. Please install ffmpeg to use the recorder")
 	}
 	return &Recorder{
 		username: username,
@@ -47,7 +51,7 @@ func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 	}
 	streamlinkCmd := exec.CommandContext(ctx, "streamlink", streamlinkArgs...)
 
-	// remux to mpegts using ffmpeg
+	// force transmux into MPEG-TS container format using ffmpeg
 	ffmpegArgs := []string{
 		"-i", "pipe:0",
 		"-c", "copy",
@@ -58,7 +62,7 @@ func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 
 	ffmpegStdin, err := streamlinkCmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create ffmpeg stdin pipe: %w", err)
+		return nil, fmt.Errorf("failed to create streamlink stdout pipe for ffmpeg stdin: %w", err)
 	}
 	ffmpegCmd.Stdin = ffmpegStdin
 
@@ -71,7 +75,6 @@ func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
 	}
-	r.ffmpegCmd = ffmpegCmd
 
 	err = streamlinkCmd.Start()
 	if err != nil {
@@ -86,6 +89,7 @@ func (r *Recorder) Record(ctx context.Context) (io.Reader, error) {
 		}
 		return nil, fmt.Errorf("failed to start streamlink command: %w", err)
 	}
+	r.ffmpegCmd = ffmpegCmd
 	r.streamlinkCmd = streamlinkCmd
 
 	return reader, nil
@@ -98,14 +102,19 @@ func (r *Recorder) WaitFinished() error {
 		return errors.New("recording is not running")
 	}
 	var errs []error
-	err := r.streamlinkCmd.Wait()
-	if err != nil {
-		errs = append(errs, fmt.Errorf("streamlink command failed: %w", err))
+
+	if r.streamlinkCmd != nil {
+		err := r.streamlinkCmd.Wait()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("streamlink command failed: %w", err))
+		}
 	}
 
-	err = r.ffmpegCmd.Wait()
-	if err != nil {
-		errs = append(errs, fmt.Errorf("ffmpeg command failed: %w", err))
+	if r.ffmpegCmd != nil {
+		err := r.ffmpegCmd.Wait()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("ffmpeg command failed: %w", err))
+		}
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
