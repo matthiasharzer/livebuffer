@@ -1,8 +1,7 @@
+import type { RouterLocation } from '@vaadin/router';
 import { css, html } from 'lit';
-import { state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { Component } from '../../litutil/Component';
-
-const liveStreamUrl = '/api/v1/live';
 
 export class WatchView extends Component {
 	static styles = css`
@@ -38,6 +37,17 @@ export class WatchView extends Component {
 	@state()
 	loaded = false;
 
+	@property({ attribute: false })
+	accessor location: RouterLocation | undefined;
+
+	get username(): string | null {
+		const username = this.location?.params.username || null;
+		if (username) {
+			return username as string;
+		}
+		return null;
+	}
+
 	onError(event: CustomEvent<{ errorType: string; errorDetail: string }>) {
 		this.error = `Error loading stream: ${event.detail.errorType} - ${event.detail.errorDetail}`;
 	}
@@ -47,10 +57,14 @@ export class WatchView extends Component {
 	}
 
 	render() {
+		if (!this.username) {
+			return html`<div class="status-wrapper"><p>Missing username in the URL.</p></div>`;
+		}
+		const url = `/api/v1/${this.username}/live`;
 		return html`
 			${this.error ? html`<div class="status-wrapper"><p>${this.error}</p></div>` : ''}
 			${!this.loaded && !this.error ? html`<div class="status-wrapper"><p>Loading live stream...</p></div>` : ''}
-			<lb-live-video url="${liveStreamUrl}" @live-video-error="${this.onError}" @live-video-loading-complete="${this.onLoad}" class="${this.loaded ? 'loaded' : ''}"></lb-live-video>
+			<lb-live-video url="${url}" @live-video-error="${this.onError}" @live-video-loading-complete="${this.onLoad}" class="${this.loaded ? 'loaded' : ''}"></lb-live-video>
 		`;
 	}
 }

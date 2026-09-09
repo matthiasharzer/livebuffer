@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/matthiasharzer/livebuffer/logging"
@@ -38,15 +37,7 @@ type Client struct {
 	onlineChannel       observer.ReadWriteChannel[StreamOnlineState]
 }
 
-func NewClient(clientID, clientSecret, username string, evenSubURL url.URL, eventSubSecret string) (*Client, error) {
-	helixClient, err := helix.NewClient(&helix.Options{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create helix client: %w", err)
-	}
-
+func NewClient(helixClient *helix.Client, eventSubClient *eventsub.Client, username string) (*Client, error) {
 	accessTokenResponse, err := helixClient.RequestAppAccessToken([]string{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to request app access token: %w", err)
@@ -70,13 +61,6 @@ func NewClient(clientID, clientSecret, username string, evenSubURL url.URL, even
 	}
 	userID := response.Data.Users[0].ID
 	userLogin := response.Data.Users[0].Login
-	eventSubClient := eventsub.NewClient(
-		helixClient,
-		userID,
-		[]string{"stream.online", "stream.offline"},
-		evenSubURL,
-		eventSubSecret,
-	)
 
 	return &Client{
 		userID:         userID,
@@ -97,7 +81,7 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 			return
 		}
 		if payload.BroadcasterUserID != c.userID {
-			logging.Warn("received event for different user", "type", notification.Subscription.Type, "broadcaster_user_id", payload.BroadcasterUserID, "broadcaster_user_name", payload.BroadcasterUserName)
+			// maybe another twitch client is responsible for this -> ignore
 			return
 		}
 		stream, err := c.getCurrentUserStream()
@@ -169,7 +153,7 @@ func (c *Client) StartEventSub() error {
 		c.unsubscribeEventSub = nil
 	}
 
-	err := c.eventSubClient.Start()
+	err := c.eventSubClient.Start([]string{"stream.online", "stream.offline"}, c.userID)
 	if err != nil {
 		return fmt.Errorf("failed to start eventsub client: %w", err)
 	}
@@ -179,10 +163,6 @@ func (c *Client) StartEventSub() error {
 		return fmt.Errorf("failed to process initial stream state: %w", err)
 	}
 	return nil
-}
-
-func (c *Client) EventSubHTTPHandler() http.Handler {
-	return c.eventSubClient.HTTPHandler()
 }
 
 func (c *Client) OnlineChannel() observer.ReadonlyChannel[StreamOnlineState] {
