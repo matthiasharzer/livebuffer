@@ -2,7 +2,6 @@ package download
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -37,11 +36,6 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 		w.Header().Set("Content-Length", strconv.FormatInt(streamInfo.Size, 10))
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+fileName+"\"")
 
-		_, err = io.Copy(w, streamReader)
-		if err != nil {
-			logging.Error("failed to stream video", "error", err)
-			http.Error(w, "failed to stream video", http.StatusInternalServerError)
-			return
-		}
+		http.ServeContent(w, r, fileName, streamInfo.StartedAt, streamReader)
 	}
 }
