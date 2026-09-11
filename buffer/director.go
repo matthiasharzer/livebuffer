@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/matthiasharzer/livebuffer/buffer/stream"
-	"github.com/matthiasharzer/livebuffer/hls"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/twitch"
@@ -359,7 +358,7 @@ func (d *Director) GetClip(ctx context.Context, streamID string, startTime, endT
 		return stream.ClipInfo{}, nil, fmt.Errorf("failed to get stream info: %w", err)
 	}
 
-	reader, err := hls.NewClipReader(ctx, stream.FilesDirectory(streamInfo.Directory), startTime, endTime)
+	reader, err := streamManager.ClipReader(ctx, startTime, endTime)
 	if err != nil {
 		return stream.ClipInfo{}, nil, fmt.Errorf("failed to create clip reader: %w", err)
 	}

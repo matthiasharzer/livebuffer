@@ -8,11 +8,11 @@ import (
 	"time"
 )
 
-const fileName = "stream.ts"
+const filesDirectory = "stream"
 const metadataFileName = "metadata.json"
 
 func FilesDirectory(streamDir string) string {
-	return filepath.Join(streamDir, "stream")
+	return filepath.Join(streamDir, filesDirectory)
 }
 
 func MetadataFile(streamDir string) string {

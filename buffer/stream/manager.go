@@ -10,12 +10,12 @@ import (
 )
 
 type Manager struct {
-	state           StreamState
+	state           State
 	meta            Metadata
 	streamDirectory string
 }
 
-func NewManager(streamDirectory string, state StreamState) (*Manager, error) {
+func NewManager(streamDirectory string, state State) (*Manager, error) {
 	metadata, err := ReadMetadata(streamDirectory)
 	if err != nil {
 		return nil, err
@@ -64,6 +64,6 @@ func (m *Manager) Reader(ctx context.Context) (io.ReadCloser, error) {
 	return reader, nil
 }
 
-func (m *Manager) ClipReader(from time.Duration, to time.Duration) (io.ReadCloser, error) {
-	return hls.NewClipReader(context.Background(), m.StreamFilesDirectory(), from, to)
+func (m *Manager) ClipReader(ctx context.Context, from time.Duration, to time.Duration) (io.ReadCloser, error) {
+	return hls.NewClipReader(ctx, m.StreamFilesDirectory(), from, to)
 }

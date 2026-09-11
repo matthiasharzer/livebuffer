@@ -4,11 +4,11 @@ import (
 	"time"
 )
 
-type StreamState string
+type State string
 
 const (
-	StateArchived StreamState = "archived"
-	StateLive     StreamState = "live"
+	StateArchived State = "archived"
+	StateLive     State = "live"
 )
 
 type Info struct {
@@ -17,7 +17,7 @@ type Info struct {
 	BroadcasterUserName string
 	StartedAt           time.Time
 	Duration            time.Duration
-	StreamState         StreamState
+	StreamState         State
 	Directory           string
 	Size                int64
 }
