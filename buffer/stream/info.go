@@ -3,8 +3,8 @@ package stream
 import (
 	"time"
 
+	"github.com/matthiasharzer/livebuffer/hls"
 	"github.com/matthiasharzer/livebuffer/logging"
-	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
 )
 
 type StreamState string
@@ -39,7 +39,7 @@ func BuildInfo(streamDirectory string, size int64, state StreamState) (Info, err
 		return Info{}, err
 	}
 
-	duration, err := ffmpegutil.GetDuration(File(streamDirectory))
+	duration, err := hls.GetDuration(hls.IndexFilePath(FilesDirectory(streamDirectory)))
 	if err != nil {
 		logging.Warn("failed to get duration of stream file", "file", File(streamDirectory), "error", err)
 	}

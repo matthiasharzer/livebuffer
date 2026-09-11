@@ -1,6 +1,7 @@
 package ffmpegutil
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -8,8 +9,13 @@ import (
 )
 
 func GetDuration(filePath string) (time.Duration, error) {
-	cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", filePath)
+	cmd := exec.Command("ffprobe", "-v", "info", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", filePath)
+
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
+
 	output, err := cmd.Output()
+	fmt.Printf("Err: %s\n", stderrBuf.String())
 	if err != nil {
 		return 0, fmt.Errorf("failed to get stream duration: %w", err)
 	}

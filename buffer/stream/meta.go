@@ -15,6 +15,10 @@ func File(streamDir string) string {
 	return filepath.Join(streamDir, fileName)
 }
 
+func FilesDirectory(streamDir string) string {
+	return filepath.Join(streamDir, "stream")
+}
+
 func MetadataFile(streamDir string) string {
 	return filepath.Join(streamDir, metadataFileName)
 }

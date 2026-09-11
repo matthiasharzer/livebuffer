@@ -3,11 +3,11 @@ package download
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
+	"github.com/matthiasharzer/livebuffer/util/ioutil"
 )
 
 func Handler(directory *buffer.Director) http.HandlerFunc {
@@ -33,9 +33,11 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 		fileName := fmt.Sprintf("%s_%s.ts", streamInfo.BroadcasterUserName, streamInfo.ID)
 
 		w.Header().Set("Content-Type", "video/mp4")
-		w.Header().Set("Content-Length", strconv.FormatInt(streamInfo.Size, 10))
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+fileName+"\"")
 
-		http.ServeContent(w, r, fileName, streamInfo.StartedAt, streamReader)
+		_, err = ioutil.CopyWithContext(r.Context(), w, streamReader)
+		if err != nil {
+			logging.Error("failed to copy stream", "error", err)
+		}
 	}
 }

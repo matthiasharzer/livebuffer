@@ -5,29 +5,31 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/matthiasharzer/livebuffer/hls"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
 )
 
 type recordingSession struct {
 	recorder *twitch.Recorder
-	buffer   *VideoFileBuffer
+	//buffer   *hlsFileWriter
+	hlsWriter io.WriteCloser
 }
 
-func newRecordingSession(username string, bufferFilePath string) (*recordingSession, error) {
+func newRecordingSession(ctx context.Context, username string, streamRecordingDirectory string) (*recordingSession, error) {
 	recorder, err := twitch.NewRecorder(username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create twitch recorder: %w", err)
 	}
 
-	buffer, err := NewVideoFileBuffer(bufferFilePath)
+	buffer, err := hls.NewWriter(ctx, streamRecordingDirectory)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create video file buffer: %w", err)
+		return nil, fmt.Errorf("failed to create hls writer: %w", err)
 	}
 
 	return &recordingSession{
-		recorder: recorder,
-		buffer:   buffer,
+		recorder:  recorder,
+		hlsWriter: buffer,
 	}, nil
 }
 
@@ -38,7 +40,7 @@ func (rs *recordingSession) Start(ctx context.Context, broadcaster *broadcastWri
 	}
 
 	go func() {
-		target := io.MultiWriter(rs.buffer, broadcaster)
+		target := io.MultiWriter(rs.hlsWriter, broadcaster)
 		_, err := io.Copy(target, reader)
 		if err != nil {
 			logging.Error("failed to write to video store", "error", err)
@@ -53,15 +55,17 @@ func (rs *recordingSession) Start(ctx context.Context, broadcaster *broadcastWri
 }
 
 func (rs *recordingSession) Close() error {
-	if rs.buffer != nil {
-		err := rs.buffer.Close()
+	if rs.hlsWriter != nil {
+		err := rs.hlsWriter.Close()
 		if err != nil {
-			return fmt.Errorf("failed to close video file buffer: %w", err)
+			return fmt.Errorf("failed to close hls writer: %w", err)
 		}
 	}
 	return nil
 }
 
 func (rs *recordingSession) FilePath() string {
-	return rs.buffer.filePath
+	// TODO: verify if this is correct
+	//return rs.hlsWriter.filePath
+	return "hls.IndexFilePath()"
 }

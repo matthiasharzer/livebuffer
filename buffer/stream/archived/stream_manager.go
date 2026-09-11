@@ -46,7 +46,7 @@ func (sm *StreamManager) StreamID() string {
 	return sm.ID
 }
 
-func (sm *StreamManager) Reader() (io.ReadSeekCloser, int64, error) {
+func (sm *StreamManager) Reader() (io.ReadCloser, int64, error) {
 	size, err := sm.fileSize()
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get stream file size: %w", err)

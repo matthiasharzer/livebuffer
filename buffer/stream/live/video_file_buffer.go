@@ -9,7 +9,11 @@ import (
 	"github.com/matthiasharzer/livebuffer/logging"
 )
 
-type VideoFileBuffer struct {
+const hlsChunkSizeSeconds = 5
+const hlsChunkFilename = "chunk_%05d.ts"
+const hlsPlaylistFilename = "index.m3u8"
+
+type hlsFileWriter struct {
 	filePath string
 
 	mu   sync.RWMutex
@@ -18,7 +22,7 @@ type VideoFileBuffer struct {
 	writeHandle *os.File
 }
 
-func NewVideoFileBuffer(filePath string) (*VideoFileBuffer, error) {
+func newHLSStreamWriter(filePath string) (*hlsFileWriter, error) {
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", filePath, err)
@@ -33,14 +37,14 @@ func NewVideoFileBuffer(filePath string) (*VideoFileBuffer, error) {
 		return nil, fmt.Errorf("failed to stat file %s: %w", filePath, err)
 	}
 
-	return &VideoFileBuffer{
+	return &hlsFileWriter{
 		filePath:    filePath,
 		writeHandle: f,
 		size:        info.Size(),
 	}, nil
 }
 
-func (vs *VideoFileBuffer) Write(p []byte) (int, error) {
+func (vs *hlsFileWriter) Write(p []byte) (int, error) {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 
@@ -49,19 +53,19 @@ func (vs *VideoFileBuffer) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func (vs *VideoFileBuffer) Close() error {
+func (vs *hlsFileWriter) Close() error {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 	return vs.writeHandle.Close()
 }
 
-func (vs *VideoFileBuffer) Size() int64 {
+func (vs *hlsFileWriter) Size() int64 {
 	vs.mu.RLock()
 	defer vs.mu.RUnlock()
 	return vs.size
 }
 
-func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadSeekCloser, int64, error) {
+func (vs *hlsFileWriter) NewSnapshotReader() (io.ReadSeekCloser, int64, error) {
 	// How much did we write to the file?
 	vs.mu.RLock()
 	currentSize := vs.size

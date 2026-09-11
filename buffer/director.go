@@ -235,6 +235,7 @@ func (d *Director) wentLive(event stream.WentLiveEvent) {
 		return
 	}
 
+	// TODO: replace context.Background()
 	manager, err := live.NewRecordingStreamManager(context.Background(), event, streamBufferDir)
 	if err != nil {
 		logging.Error("failed to create recording stream manager", "error", err)
@@ -345,7 +346,7 @@ func (d *Director) GetStreams() ([]stream.Info, error) {
 	return d.getStreamsSortedByStartTime()
 }
 
-func (d *Director) GetStream(streamID string) (stream.Info, io.ReadSeekCloser, error) {
+func (d *Director) GetStream(streamID string) (stream.Info, io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

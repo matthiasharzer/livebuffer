@@ -8,6 +8,7 @@ import (
 
 type TempFileOptions struct {
 	FileEnding string
+	Directory  string
 }
 
 func applyTempFileOptions(opts ...TempFileOptions) TempFileOptions {
