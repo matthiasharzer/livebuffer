@@ -2,11 +2,23 @@ package hls
 
 import "path/filepath"
 
-const hlsChunkExtension = ".ts"
-const hlsChunkSizeSeconds = 5
-const hlsChunkFilename = "chunk_%05d" + hlsChunkExtension
-const hlsPlaylistFilename = "index.m3u8"
+const ChunkExtension = ".ts"
+const ChunkSizeSeconds = 5
+const ChunkFilename = "chunk_%05d" + ChunkExtension
+const IndexFilename = "index.m3u8"
 
 func IndexFilePath(directory string) string {
-	return filepath.Join(directory, hlsPlaylistFilename)
+	return filepath.Join(directory, IndexFilename)
+}
+
+func ResolveFile(directory string, filename string) string {
+	filename = filepath.Clean(filename)
+
+	if filename == IndexFilename || filename == "." {
+		return IndexFilePath(directory)
+	}
+	if filepath.Ext(filename) == ChunkExtension {
+		return filepath.Join(directory, filename)
+	}
+	return ""
 }

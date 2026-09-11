@@ -311,6 +311,54 @@ func (d *Director) getStreamsSortedByStartTime() ([]stream.Info, error) {
 	return streams, nil
 }
 
+func (d *Director) getStreamCommon(streamID string) (*stream.Manager, *stream.Info, error) {
+	streamManager, err := d.getManager(streamID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get stream manager: %w", err)
+	}
+	if streamManager == nil {
+		return nil, nil, nil
+	}
+
+	streamInfo, err := streamManager.StreamInfo()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get stream info: %w", err)
+	}
+
+	return streamManager, &streamInfo, nil
+}
+
+func (d *Director) GetUsername() string {
+	return d.username
+}
+
+func (d *Director) GetStreamInfo(streamID string) (*stream.Info, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	_, streamInfo, err := d.getStreamCommon(streamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stream info: %w", err)
+	}
+
+	return streamInfo, nil
+}
+
+func (d *Director) GetLiveStream() (*stream.Info, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.liveRecordingSession == nil {
+		return nil, nil
+	}
+
+	_, streamInfo, err := d.getStreamCommon(d.liveRecordingSession.StreamID())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stream info: %w", err)
+	}
+	return streamInfo, nil
+}
+
 func (d *Director) GetStreams() ([]stream.Info, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -321,41 +369,31 @@ func (d *Director) GetStream(ctx context.Context, streamID string) (stream.Info,
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamManager, err := d.getManager(streamID)
+	streamManager, streamInfo, err := d.getStreamCommon(streamID)
 	if err != nil {
-		return stream.Info{}, nil, fmt.Errorf("failed to get stream manager: %w", err)
+		return stream.Info{}, nil, fmt.Errorf("failed to get stream: %w", err)
 	}
-	if streamManager == nil {
+	if streamManager == nil || streamInfo == nil {
 		return stream.Info{}, nil, nil
-	}
-
-	streamInfo, err := streamManager.StreamInfo()
-	if err != nil {
-		return stream.Info{}, nil, fmt.Errorf("failed to get stream info: %w", err)
 	}
 
 	reader, err := streamManager.Reader(ctx)
 	if err != nil {
 		return stream.Info{}, nil, fmt.Errorf("failed to get stream reader: %w", err)
 	}
-	return streamInfo, reader, nil
+	return *streamInfo, reader, nil
 }
 
 func (d *Director) GetClip(ctx context.Context, streamID string, startTime, endTime time.Duration) (stream.ClipInfo, io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamManager, err := d.getManager(streamID)
+	streamManager, streamInfo, err := d.getStreamCommon(streamID)
 	if err != nil {
-		return stream.ClipInfo{}, nil, fmt.Errorf("failed to get stream manager: %w", err)
+		return stream.ClipInfo{}, nil, fmt.Errorf("failed to get stream: %w", err)
 	}
-	if streamManager == nil {
+	if streamManager == nil || streamInfo == nil {
 		return stream.ClipInfo{}, nil, nil
-	}
-
-	streamInfo, err := streamManager.StreamInfo()
-	if err != nil {
-		return stream.ClipInfo{}, nil, fmt.Errorf("failed to get stream info: %w", err)
 	}
 
 	reader, err := streamManager.ClipReader(ctx, startTime, endTime)
@@ -364,7 +402,7 @@ func (d *Director) GetClip(ctx context.Context, streamID string, startTime, endT
 	}
 
 	clipInfo := stream.ClipInfo{
-		Stream:    streamInfo,
+		Stream:    *streamInfo,
 		StartTime: startTime,
 		EndTime:   endTime,
 		Duration:  endTime - startTime,
