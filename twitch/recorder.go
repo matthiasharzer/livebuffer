@@ -24,32 +24,6 @@ func isStreamlinkInstalled() bool {
 	return err == nil
 }
 
-func cleanupOnRecordingError(ffmpegCmd *exec.Cmd, ffmpegStdin io.ReadCloser, ffmpegStdout io.ReadCloser) {
-	if ffmpegStdin != nil {
-		closeErr := ffmpegStdin.Close()
-		if closeErr != nil {
-			logging.Warn("fialed to close ffmpeg stdin reader", "error", closeErr)
-		}
-	}
-	if ffmpegStdout != nil {
-		closeErr := ffmpegStdout.Close()
-		if closeErr != nil {
-			logging.Warn("failed to close ffmpeg stdout reader", "error", closeErr)
-		}
-	}
-	if ffmpegCmd != nil {
-		killErr := ffmpegCmd.Process.Kill()
-		if killErr != nil {
-			logging.Warn("failed to kill ffmpeg process after streamlink startup failure", "error", killErr)
-		} else {
-			waitErr := ffmpegCmd.Wait()
-			if waitErr != nil {
-				logging.Warn("failed to wait for ffmpeg process to finish after streamlink startup failure", "error", waitErr)
-			}
-		}
-	}
-}
-
 func NewRecorder(username string) (*Recorder, error) {
 	if !isStreamlinkInstalled() {
 		return nil, errors.New("streamlink is not installed. Please install streamlink to use the recorder")

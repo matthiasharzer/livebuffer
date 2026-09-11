@@ -12,7 +12,7 @@ type Info struct {
 }
 
 func Stat(directory string) (Info, error) {
-	indexFile := IndexFilePath(directory)
+	indexFile := indexFilePath(directory)
 	_, err := os.Stat(indexFile)
 	if os.IsNotExist(err) {
 		return Info{}, fmt.Errorf("not a hls playlist directory")

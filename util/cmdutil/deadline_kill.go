@@ -17,8 +17,7 @@ func DeadlineKill(cmd *exec.Cmd, timeout time.Duration) error {
 		if err != nil {
 			return err
 		}
-		<-done
-		return exec.ErrNotFound
+		return <-done
 	case err := <-done:
 		return err
 	}

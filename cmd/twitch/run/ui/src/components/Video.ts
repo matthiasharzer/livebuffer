@@ -81,6 +81,10 @@ export class Video extends Component {
 		this.player.loadSource(this.hlsSource);
 		this.player.attachMedia(this.videoElement);
 		this.player.on(Hls.Events.ERROR, (_, data) => {
+			if (data.fatal) {
+				this.error = `Error loading video: ${data.type} - ${data.details}`;
+				return;
+			}
 			if (this.loaded) {
 				// ignored, since this is likely a network error that occurred after seeking
 				return;
@@ -105,7 +109,7 @@ export class Video extends Component {
 		return html`
 			<div class="status-wrapper ${showStatus ? 'visible' : 'hidden'}">
 				${this.error ? html`<div class="status-wrapper"><p>${this.error}</p></div>` : ''}
-				${!this.loaded && !this.error ? html`<div class="status-wrapper"><p>Loading live stream...</p></div>` : ''}
+				${!this.loaded && !this.error ? html`<div class="status-wrapper"><p>Loading stream...</p></div>` : ''}
 			</div>
 			<video ${ref(this.videoElementRef)} ?autoplay="${this.autoplay}" muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
 		`;

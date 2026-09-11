@@ -29,11 +29,11 @@ func createSnapshot(directory string) (string, func(), error) {
 
 	_, err = tmpFile.Write(playlistBytes)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to write to snapshot paylist: %w", err)
+		return "", nil, fmt.Errorf("failed to write to snapshot playlist: %w", err)
 	}
 	_, err = tmpFile.WriteString("\n#EXT-X-ENDLIST\n")
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to write to snapshot paylist: %w", err)
+		return "", nil, fmt.Errorf("failed to write to snapshot playlist: %w", err)
 	}
 
 	return tmpFileName, func() {
@@ -52,12 +52,14 @@ func createReader(ctx context.Context, args []string, cleanup func()) (io.ReadCl
 
 	cmdStdout, err := cmd.StdoutPipe()
 	if err != nil {
+		cleanup()
 		return nil, fmt.Errorf("failed to create ffmpeg pipe: %w", err)
 	}
 
 	err = cmd.Start()
 	if err != nil {
 		_ = cmdStdout.Close()
+		cleanup()
 		return nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
 	}
 
@@ -107,10 +109,10 @@ func (r *reader) Read(p []byte) (n int, err error) {
 }
 
 func (r *reader) Close() error {
-	r.cleanup()
 	pipeErr := r.pipe.Close()
 
 	killErr := cmdutil.DeadlineKill(r.cmd, 5*time.Second)
+	r.cleanup()
 
 	if pipeErr != nil {
 		return pipeErr

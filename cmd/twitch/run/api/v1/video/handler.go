@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
-	"github.com/matthiasharzer/livebuffer/buffer/stream"
 	"github.com/matthiasharzer/livebuffer/hls"
 	"github.com/matthiasharzer/livebuffer/logging"
 )
@@ -16,17 +15,16 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 		cleanPath := filepath.Clean(r.URL.Path)
 		filename := filepath.Base(cleanPath)
 
-		streamInfo, err := director.GetStreamInfo(streamID)
+		filesDirectory, err := director.GetStreamFilesDirectory(streamID)
 		if err != nil {
-			logging.Error("failed to retrieve stream", "error", err)
-			http.Error(w, "failed to retrieve stream", http.StatusInternalServerError)
+			logging.Error("failed to retrieve stream files directory", "error", err)
+			http.Error(w, "failed to retrieve stream files", http.StatusInternalServerError)
 			return
 		}
-		if streamInfo == nil {
+		if filesDirectory == "" {
 			http.Error(w, "stream not found", http.StatusNotFound)
 			return
 		}
-		filesDirectory := stream.FilesDirectory(streamInfo.Directory)
 
 		handler := hls.ServeHTTP(filesDirectory, filename)
 		handler(w, r)

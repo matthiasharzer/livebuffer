@@ -19,23 +19,6 @@ type RecordingSession struct {
 	ctx             context.Context
 }
 
-func cleanupOnFailure(streamDirectory string, session *RecordingSession) {
-	metadataRemovalErr := os.Remove(MetadataFile(streamDirectory))
-	if metadataRemovalErr != nil {
-		logging.Warn("failed to clean up metadata file after session creation error", "metadata_file", MetadataFile(streamDirectory), "error", metadataRemovalErr)
-	}
-	filesRemovalErr := os.RemoveAll(FilesDirectory(streamDirectory))
-	if filesRemovalErr != nil {
-		logging.Warn("failed to clean up stream files directory after session creation error", "stream_files_directory", FilesDirectory(streamDirectory), "error", filesRemovalErr)
-	}
-	if session != nil {
-		sessionCloseErr := session.Close()
-		if sessionCloseErr != nil {
-			logging.Warn("failed to close recording session after start error", "error", sessionCloseErr)
-		}
-	}
-}
-
 func StartRecording(event WentLiveEvent, streamDirectory string) (*RecordingSession, error) {
 	err := WriteMetadata(streamDirectory, Metadata{
 		ID:                  event.StreamID,
@@ -50,7 +33,6 @@ func StartRecording(event WentLiveEvent, streamDirectory string) (*RecordingSess
 	streamFilesDirectory := FilesDirectory(streamDirectory)
 	err = os.MkdirAll(streamFilesDirectory, 0755)
 	if err != nil {
-		cleanupOnFailure(streamDirectory, nil)
 		return nil, fmt.Errorf("failed to create stream files directory: %w", err)
 	}
 
@@ -59,14 +41,12 @@ func StartRecording(event WentLiveEvent, streamDirectory string) (*RecordingSess
 	recorder, err := twitch.NewRecorder(event.BroadcasterUserName)
 	if err != nil {
 		cancel()
-		cleanupOnFailure(streamDirectory, nil)
 		return nil, fmt.Errorf("failed to create twitch recorder: %w", err)
 	}
 
 	buffer, err := hls.NewWriter(recordingContext, streamFilesDirectory)
 	if err != nil {
 		cancel()
-		cleanupOnFailure(streamDirectory, nil)
 		return nil, fmt.Errorf("failed to create hls writer: %w", err)
 	}
 
@@ -80,8 +60,11 @@ func StartRecording(event WentLiveEvent, streamDirectory string) (*RecordingSess
 	err = session.start()
 	if err != nil {
 		cancel()
-		cleanupOnFailure(streamDirectory, session)
-		return nil, fmt.Errorf("failed to start recording")
+		sessionCloseErr := session.Close()
+		if sessionCloseErr != nil {
+			logging.Warn("failed to close recording session after start error", "error", sessionCloseErr)
+		}
+		return nil, fmt.Errorf("failed to start recording: %w", err)
 	}
 
 	return session, nil
@@ -112,15 +95,15 @@ func (rs *RecordingSession) start() error {
 }
 
 func (rs *RecordingSession) Close() error {
-	if rs.cancelRecording != nil {
-		rs.cancelRecording()
-		rs.cancelRecording = nil
-	}
 	if rs.hlsWriter != nil {
 		err := rs.hlsWriter.Close()
 		if err != nil {
 			return fmt.Errorf("failed to close hls writer: %w", err)
 		}
+	}
+	if rs.cancelRecording != nil {
+		rs.cancelRecording()
+		rs.cancelRecording = nil
 	}
 	return nil
 }

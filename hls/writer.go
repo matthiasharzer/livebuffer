@@ -23,6 +23,7 @@ func NewWriter(ctx context.Context, directory string) (io.WriteCloser, error) {
 	playlistFilepath := filepath.Join(directory, indexFilename)
 
 	args := []string{
+		"-y",
 		"-i", "pipe:0",
 		"-c", "copy",
 
