@@ -75,15 +75,17 @@ func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadSeekCloser, int64, error)
 	// Limit the reader to the current size of the file at the time of snapshot creation
 	limitedReaderSeeker := io.NewSectionReader(f, 0, currentSize)
 
-	return &readSeekCloserWrapper{
-		Reader: limitedReaderSeeker,
-		Seeker: limitedReaderSeeker,
-		Closer: f, // Ensure calling Close() closes the underlying *os.File
+	return &snapshotReader{
+		SectionReader: limitedReaderSeeker,
+		f:             f,
 	}, currentSize, nil
 }
 
-type readSeekCloserWrapper struct {
-	io.Reader
-	io.Seeker
-	io.Closer
+type snapshotReader struct {
+	*io.SectionReader
+	f *os.File
+}
+
+func (s *snapshotReader) Close() error {
+	return s.f.Close()
 }
