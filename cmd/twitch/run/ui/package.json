@@ -2,8 +2,8 @@
 	"name": "livebuffer-ui",
 	"version": "1.0.0",
 	"devDependencies": {
-		"@biomejs/biome": "2.5.7",
-		"esbuild": "0.28.1",
+		"@biomejs/biome": "2.5.12",
+		"esbuild": "0.28.2",
 		"typescript": "7.0.2"
 	},
 	"dependencies": {
