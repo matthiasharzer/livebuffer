@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/matthiasharzer/livebuffer/util/cmdutil"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 )
 
@@ -80,24 +81,6 @@ func NewReader(ctx context.Context, directory string) (io.ReadCloser, error) {
 		"pipe:1",
 	}
 	return createReader(ctx, args, cleanup)
-	//cmd := exec.CommandContext(ctx, "ffmpeg", args...)
-	//
-	//cmdStdout, err := cmd.StdoutPipe()
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to create ffmpeg pipe: %w", err)
-	//}
-	//
-	//err = cmd.Start()
-	//if err != nil {
-	//	_ = cmdStdout.Close()
-	//	return nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
-	//}
-	//
-	//return &reader{
-	//	cmd:     cmd,
-	//	pipe:    cmdStdout,
-	//	cleanup: cleanup,
-	//}, nil
 }
 
 func NewClipReader(ctx context.Context, directory string, from time.Duration, to time.Duration) (io.ReadCloser, error) {
@@ -127,13 +110,10 @@ func (r *reader) Close() error {
 	r.cleanup()
 	pipeErr := r.pipe.Close()
 
-	if r.cmd.Process != nil {
-		_ = r.cmd.Process.Kill()
-	}
+	killErr := cmdutil.DeadlineKill(r.cmd, 5*time.Second)
 
-	waitErr := r.cmd.Wait()
 	if pipeErr != nil {
 		return pipeErr
 	}
-	return waitErr
+	return killErr
 }

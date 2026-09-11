@@ -7,6 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"time"
+
+	"github.com/matthiasharzer/livebuffer/util/cmdutil"
 )
 
 type writer struct {
@@ -59,13 +62,10 @@ func (w *writer) Write(p []byte) (n int, err error) {
 func (w *writer) Close() error {
 	pipeErr := w.pipe.Close()
 
-	if w.cmd.Process != nil {
-		_ = w.cmd.Process.Kill()
-	}
+	killErr := cmdutil.DeadlineKill(w.cmd, 5*time.Second)
 
-	waitErr := w.cmd.Wait()
 	if pipeErr != nil {
 		return pipeErr
 	}
-	return waitErr
+	return killErr
 }
