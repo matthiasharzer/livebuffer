@@ -19,7 +19,7 @@ export class Video extends Component {
 			display: none;
 
 			&.loaded {
-				display: unset;
+				display: block;
 			}
 		}
 
