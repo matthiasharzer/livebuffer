@@ -344,7 +344,7 @@ func (d *Director) GetStreamInfo(streamID string) (*stream.Info, error) {
 	return streamInfo, nil
 }
 
-func (d *Director) GetLiveStream() (*stream.Info, error) {
+func (d *Director) GetLiveStreamInfo() (*stream.Info, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

@@ -34,8 +34,8 @@ func GetMux(userContexts []userContext, eventSubHandler http.Handler) *http.Serv
 		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/list", context.username), list.Handler(context.director))
 		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/download", context.username), download.Handler(context.director))
 		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/clip", context.username), clip.Handler(context.director))
-		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/live", context.username), live.Handler(context.director))
-		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/{streamID}/video/", context.username), stream.Handler(context.director))
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/live/", context.username), live.Handler(context.director))
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/video/{streamID}/", context.username), stream.Handler(context.director))
 	}
 
 	mux.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) {

@@ -2,72 +2,32 @@ package live
 
 import (
 	"net/http"
-	"time"
+	"path/filepath"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
+	"github.com/matthiasharzer/livebuffer/buffer/stream"
+	"github.com/matthiasharzer/livebuffer/hls"
 	"github.com/matthiasharzer/livebuffer/logging"
 )
 
-const channelBufferChunks = 250
-const chunkWriteDeadline = 15 * time.Second
-
 func Handler(director *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "video/mp2t")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		cleanPath := filepath.Clean(r.URL.Path)
+		filename := filepath.Base(cleanPath)
 
-		flusher, canFlush := w.(http.Flusher)
-		if !canFlush {
-			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
-			return
-		}
-		rc := http.NewResponseController(w)
-
-		broadcaster, err := director.GetBroadcaster()
+		streamInfo, err := director.GetLiveStreamInfo()
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte("Failed to get live manager"))
+			logging.Error("failed to retrieve live stream", "error", err)
+			http.Error(w, "failed to retrieve live stream", http.StatusInternalServerError)
 			return
 		}
-		if broadcaster == nil {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte("No live stream available"))
+		if streamInfo == nil {
+			http.Error(w, "user is not live", http.StatusNotFound)
 			return
 		}
+		filesDirectory := stream.FilesDirectory(streamInfo.Directory)
 
-		clientChannel := make(chan []byte, channelBufferChunks)
-		logging.Info("client connected to live stream")
-
-		broadcaster.AddClient(clientChannel)
-
-		defer func() {
-			broadcaster.RemoveClient(clientChannel)
-			logging.Info("client disconnected from live stream")
-		}()
-
-		ctx := r.Context()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case chunk, ok := <-clientChannel:
-				if !ok {
-					return
-				}
-
-				err := rc.SetWriteDeadline(time.Now().Add(chunkWriteDeadline))
-				if err != nil {
-					logging.Error("failed to set deadline", "error", err)
-					return
-				}
-
-				_, err = w.Write(chunk)
-				if err != nil {
-					logging.Warn("write error or timeout", "error", err)
-					return
-				}
-				flusher.Flush()
-			}
-		}
+		handler := hls.ServeHTTP(filesDirectory, filename)
+		handler(w, r)
 	}
 }
