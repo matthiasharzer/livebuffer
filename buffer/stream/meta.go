@@ -11,10 +11,6 @@ import (
 const fileName = "stream.ts"
 const metadataFileName = "metadata.json"
 
-func File(streamDir string) string {
-	return filepath.Join(streamDir, fileName)
-}
-
 func FilesDirectory(streamDir string) string {
 	return filepath.Join(streamDir, "stream")
 }

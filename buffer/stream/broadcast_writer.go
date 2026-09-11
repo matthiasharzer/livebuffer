@@ -1,19 +1,19 @@
-package live
+package stream
 
 import "sync"
 
-type broadcastWriter struct {
+type BroadcastWriter struct {
 	mu      sync.RWMutex
 	clients map[chan []byte]struct{}
 }
 
-func newBroadcastWriter() *broadcastWriter {
-	return &broadcastWriter{
+func newBroadcastWriter() *BroadcastWriter {
+	return &BroadcastWriter{
 		clients: make(map[chan []byte]struct{}),
 	}
 }
 
-func (h *broadcastWriter) Write(p []byte) (n int, err error) {
+func (h *BroadcastWriter) Write(p []byte) (n int, err error) {
 	h.mu.RLock()
 	if len(h.clients) == 0 {
 		h.mu.RUnlock()
@@ -48,13 +48,13 @@ func (h *broadcastWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (h *broadcastWriter) AddClient(clientChan chan []byte) {
+func (h *BroadcastWriter) AddClient(clientChan chan []byte) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.clients[clientChan] = struct{}{}
 }
 
-func (h *broadcastWriter) RemoveClient(clientChan chan []byte) {
+func (h *BroadcastWriter) RemoveClient(clientChan chan []byte) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.clients[clientChan]; !ok {
@@ -64,7 +64,7 @@ func (h *broadcastWriter) RemoveClient(clientChan chan []byte) {
 	close(clientChan)
 }
 
-func (h *broadcastWriter) Close() error {
+func (h *BroadcastWriter) Close() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for clientChan := range h.clients {

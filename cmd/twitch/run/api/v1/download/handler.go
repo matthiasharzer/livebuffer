@@ -18,7 +18,7 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			return
 		}
 
-		streamInfo, streamReader, err := directory.GetStream(streamID)
+		streamInfo, streamReader, err := directory.GetStream(r.Context(), streamID)
 		if err != nil {
 			logging.Error("failed to retrieve stream", "error", err)
 			http.Error(w, "failed to retrieve stream", http.StatusInternalServerError)

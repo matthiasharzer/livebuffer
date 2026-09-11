@@ -23,13 +23,13 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 		}
 		rc := http.NewResponseController(w)
 
-		liveManager, err := director.GetLiveManager()
+		broadcaster, err := director.GetBroadcaster()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte("Failed to get live manager"))
 			return
 		}
-		if liveManager == nil {
+		if broadcaster == nil {
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte("No live stream available"))
 			return
@@ -38,10 +38,10 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 		clientChannel := make(chan []byte, channelBufferChunks)
 		logging.Info("client connected to live stream")
 
-		liveManager.LiveSubscribe(clientChannel)
+		broadcaster.AddClient(clientChannel)
 
 		defer func() {
-			liveManager.LiveUnsubscribe(clientChannel)
+			broadcaster.RemoveClient(clientChannel)
 			logging.Info("client disconnected from live stream")
 		}()
 

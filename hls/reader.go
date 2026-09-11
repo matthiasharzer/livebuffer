@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 )
@@ -45,18 +46,7 @@ type reader struct {
 	cleanup func()
 }
 
-func NewReader(ctx context.Context, directory string) (io.ReadCloser, error) {
-	snapshotFile, cleanup, err := createSnapshot(directory)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create hls snapshot: %w", err)
-	}
-
-	args := []string{
-		"-i", snapshotFile,
-		"-c", "copy",
-		"-f", "mpegts",
-		"pipe:1",
-	}
+func createReader(ctx context.Context, args []string, cleanup func()) (io.ReadCloser, error) {
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 
 	cmdStdout, err := cmd.StdoutPipe()
@@ -75,6 +65,58 @@ func NewReader(ctx context.Context, directory string) (io.ReadCloser, error) {
 		pipe:    cmdStdout,
 		cleanup: cleanup,
 	}, nil
+}
+
+func NewReader(ctx context.Context, directory string) (io.ReadCloser, error) {
+	snapshotFile, cleanup, err := createSnapshot(directory)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create hls snapshot: %w", err)
+	}
+
+	args := []string{
+		"-i", snapshotFile,
+		"-c", "copy",
+		"-f", "mpegts",
+		"pipe:1",
+	}
+	return createReader(ctx, args, cleanup)
+	//cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	//
+	//cmdStdout, err := cmd.StdoutPipe()
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to create ffmpeg pipe: %w", err)
+	//}
+	//
+	//err = cmd.Start()
+	//if err != nil {
+	//	_ = cmdStdout.Close()
+	//	return nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
+	//}
+	//
+	//return &reader{
+	//	cmd:     cmd,
+	//	pipe:    cmdStdout,
+	//	cleanup: cleanup,
+	//}, nil
+}
+
+func NewClipReader(ctx context.Context, directory string, from time.Duration, to time.Duration) (io.ReadCloser, error) {
+	snapshotFile, cleanup, err := createSnapshot(directory)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create hls snapshot: %w", err)
+	}
+	startStr := fmt.Sprintf("%.3f", from.Seconds())
+	durationStr := fmt.Sprintf("%.3f", to.Seconds()-from.Seconds())
+
+	args := []string{
+		"-i", snapshotFile,
+		"-ss", startStr,
+		"-t", durationStr,
+		"-c", "copy",
+		"-f", "mpegts",
+		"pipe:1",
+	}
+	return createReader(ctx, args, cleanup)
 }
 
 func (r *reader) Read(p []byte) (n int, err error) {
