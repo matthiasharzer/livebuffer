@@ -28,7 +28,7 @@ RUN go mod download && \
 		go mod verify
 
 COPY . .
-COPY --from=build-ui /app/cmd/twitch/run/ui/public ui/public
+COPY --from=build-ui /app/cmd/twitch/run/ui/public cmd/twitch/run/ui/public
 
 RUN go build  \
     -o ../bin/livebuffer \
