@@ -19,3 +19,4 @@ cmd/twitch/run/ui/node_modules
 # Dev
 .buffer
 .env
+/.run/

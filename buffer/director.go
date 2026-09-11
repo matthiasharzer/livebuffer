@@ -345,7 +345,7 @@ func (d *Director) GetStreams() ([]stream.Info, error) {
 	return d.getStreamsSortedByStartTime()
 }
 
-func (d *Director) GetStream(streamID string) (stream.Info, io.ReadCloser, error) {
+func (d *Director) GetStream(streamID string) (stream.Info, io.ReadSeekCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

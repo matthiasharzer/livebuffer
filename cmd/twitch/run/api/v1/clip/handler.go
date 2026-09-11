@@ -1,6 +1,8 @@
 package clip
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +12,19 @@ import (
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 )
+
+type contextReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (cr *contextReader) Read(p []byte) (int, error) {
+	err := cr.ctx.Err()
+	if err != nil {
+		return 0, err
+	}
+	return cr.reader.Read(p)
+}
 
 func Handler(directory *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -61,10 +76,15 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 		w.Header().Set("Content-Type", "video/mp4")
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+responseFileName+"\"")
 
-		_, err = io.Copy(w, clipReader)
+		ctxReader := &contextReader{ctx: r.Context(), reader: clipReader}
+
+		_, err = io.Copy(w, ctxReader)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				// expected when client disconnects while writing
+				return
+			}
 			logging.Error("failed to stream video", "error", err)
-			http.Error(w, "failed to stream video", http.StatusInternalServerError)
 			return
 		}
 	}

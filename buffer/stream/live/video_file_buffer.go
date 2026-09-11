@@ -61,7 +61,7 @@ func (vs *VideoFileBuffer) Size() int64 {
 	return vs.size
 }
 
-func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadCloser, int64, error) {
+func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadSeekCloser, int64, error) {
 	// How much did we write to the file?
 	vs.mu.RLock()
 	currentSize := vs.size
@@ -73,15 +73,19 @@ func (vs *VideoFileBuffer) NewSnapshotReader() (io.ReadCloser, int64, error) {
 	}
 
 	// Limit the reader to the current size of the file at the time of snapshot creation
-	limitedReader := io.LimitReader(f, currentSize)
+	limitedReaderSeeker := io.NewSectionReader(f, 0, currentSize)
 
-	return &readCloserWrapper{
-		Reader: limitedReader,
-		Closer: f, // Ensure calling Close() closes the underlying *os.File
+	return &snapshotReader{
+		SectionReader: limitedReaderSeeker,
+		f:             f,
 	}, currentSize, nil
 }
 
-type readCloserWrapper struct {
-	io.Reader
-	io.Closer
+type snapshotReader struct {
+	*io.SectionReader
+	f *os.File
+}
+
+func (s *snapshotReader) Close() error {
+	return s.f.Close()
 }

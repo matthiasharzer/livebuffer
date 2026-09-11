@@ -20,6 +20,8 @@ body {
 	overflow-y: auto;
 	scrollbar-gutter: stable both-edges;
 	color-scheme: dark;
+	background-color: #1a1919;
+	color: #e2e2e2;
 }
 
 :root {

@@ -80,7 +80,7 @@ func (sm *StreamManager) StreamID() string {
 	return sm.id
 }
 
-func (sm *StreamManager) Reader() (io.ReadCloser, int64, error) {
+func (sm *StreamManager) Reader() (io.ReadSeekCloser, int64, error) {
 	return sm.session.buffer.NewSnapshotReader()
 }
 

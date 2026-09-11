@@ -23,6 +23,29 @@ updates:
           - minor
           - patch
 
+  - package-ecosystem: npm
+    directory: "/cmd/twitch/run/ui"
+    cooldown:
+      default-days: 7
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    assignees:
+      - matthiasharzer
+    labels:
+      - Dependencies
+    allow:
+      - dependency-type: direct
+    commit-message:
+      prefix: chore
+    groups:
+      npm:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
   - package-ecosystem: "github-actions"
     directory: "/"
     cooldown:

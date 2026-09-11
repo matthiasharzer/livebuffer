@@ -20,13 +20,15 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 		responseStreams := make([]ResponseStream, 0, len(streams))
 		for _, stream := range streams {
 			responseStreams = append(responseStreams, ResponseStream{
-				ID:                  stream.ID,
-				Title:               stream.Title,
-				Size:                humanize.Bytes(uint64(stream.Size)),
-				Duration:            stream.Duration.String(),
-				StartedAt:           stream.StartedAt,
-				BroadcasterUserName: stream.BroadcasterUserName,
-				StreamState:         string(stream.StreamState),
+				ID:                   stream.ID,
+				Title:                stream.Title,
+				Size:                 humanize.Bytes(uint64(stream.Size)),
+				SizeBytes:            stream.Size,
+				Duration:             stream.Duration.String(),
+				DurationMilliseconds: stream.Duration.Milliseconds(),
+				StartedAt:            stream.StartedAt,
+				BroadcasterUserName:  stream.BroadcasterUserName,
+				StreamState:          string(stream.StreamState),
 			})
 		}
 		response := Response{
