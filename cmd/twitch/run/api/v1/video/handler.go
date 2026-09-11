@@ -1,4 +1,4 @@
-package live
+package video
 
 import (
 	"net/http"
@@ -11,17 +11,18 @@ import (
 
 func Handler(director *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		streamID := r.PathValue("streamID")
 		cleanPath := filepath.Clean(r.URL.Path)
 		filename := filepath.Base(cleanPath)
 
-		filesDirectory, err := director.GetLiveStreamFilesDirectory()
+		filesDirectory, err := director.GetStreamFilesDirectory(streamID)
 		if err != nil {
-			logging.Error("failed to retrieve live stream files directory", "error", err)
-			http.Error(w, "failed to retrieve live stream files", http.StatusInternalServerError)
+			logging.Error("failed to retrieve stream files directory", "error", err)
+			http.Error(w, "failed to retrieve stream files", http.StatusInternalServerError)
 			return
 		}
 		if filesDirectory == "" {
-			http.Error(w, "user is not live", http.StatusNotFound)
+			http.Error(w, "stream not found", http.StatusNotFound)
 			return
 		}
 

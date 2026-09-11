@@ -9,6 +9,7 @@ import (
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/download"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/list"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/live"
+	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/video"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/ui"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
@@ -33,7 +34,8 @@ func GetMux(userContexts []userContext, eventSubHandler http.Handler) *http.Serv
 		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/list", context.username), list.Handler(context.director))
 		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/download", context.username), download.Handler(context.director))
 		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/clip", context.username), clip.Handler(context.director))
-		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/live", context.username), live.Handler(context.director))
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/live/", context.username), live.Handler(context.director))
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/video/{streamID}/", context.username), video.Handler(context.director))
 	}
 
 	mux.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) {

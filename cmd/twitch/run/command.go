@@ -27,7 +27,10 @@ var liveBufferPublicURL string
 var maxStreams = 2
 var eventSubSecretArg string
 
+var devNoEventSub bool
+
 func init() {
+	devNoEventSub = os.Getenv("DEV_NO_EVENT_SUB") != ""
 	Command.Flags().IntVarP(&httpPort, "port", "p", httpPort, "HTTP server port")
 	Command.Flags().StringVarP(&httpHost, "host", "", "", "HTTP server host (default: all interfaces)")
 	Command.Flags().StringSliceVarP(&usernames, "username", "u", []string{}, "Twitch username to buffer. Can be used multiple times (required)")
@@ -40,9 +43,12 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	err = Command.MarkFlagRequired("public-url")
-	if err != nil {
-		panic(err)
+
+	if !devNoEventSub {
+		err = Command.MarkFlagRequired("public-url")
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -186,6 +192,11 @@ var Command = &cobra.Command{
 		}()
 
 		for _, context := range userContexts {
+			if devNoEventSub {
+				logging.Info("skipping event sub registration")
+				_ = context.twitchClient.HandleInitialStreamState()
+				continue
+			}
 			err := context.twitchClient.StartEventSub()
 			if err != nil {
 				return fmt.Errorf("failed to start event sub for user %s: %w", context.username, err)

@@ -7,39 +7,17 @@ import (
 	"io"
 	"iter"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/matthiasharzer/livebuffer/buffer/stream"
-	"github.com/matthiasharzer/livebuffer/buffer/stream/archived"
-	"github.com/matthiasharzer/livebuffer/buffer/stream/live"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
 )
-
-type ffmpegReadCloser struct {
-	io.ReadCloser
-	cmd *exec.Cmd
-}
-
-func (f *ffmpegReadCloser) Close() error {
-	err := f.ReadCloser.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close ffmpeg stdout pipe: %w", err)
-	}
-
-	err = f.cmd.Wait()
-	if err != nil {
-		return fmt.Errorf("ffmpeg command failed: %w", err)
-	}
-
-	return nil
-}
 
 // Director manages the livebuffer for twitch streams
 type Director struct {
@@ -48,7 +26,7 @@ type Director struct {
 	username                 string
 	onlineChannel            observer.ReadonlyChannel[twitch.StreamOnlineState]
 	unsubscribeOnlineChannel observer.UnsubscribeFunc
-	liveStreamManager        *live.StreamManager
+	liveRecordingSession     *stream.RecordingSession
 
 	mu sync.Mutex
 }
@@ -155,8 +133,8 @@ func (d *Director) cleanupFiles() error {
 	}
 
 	var liveStreamID string
-	if d.liveStreamManager != nil {
-		liveStreamID = d.liveStreamManager.StreamID()
+	if d.liveRecordingSession != nil {
+		liveStreamID = d.liveRecordingSession.StreamID()
 	}
 
 	streamsToDelete := streams[:len(streams)-d.maxStreams]
@@ -177,12 +155,12 @@ func (d *Director) cleanupFiles() error {
 
 func (d *Director) stopRecordingStop() error {
 	logging.Info("stopping recording session", "username", d.username)
-	if d.liveStreamManager != nil {
-		err := d.liveStreamManager.Close()
+	if d.liveRecordingSession != nil {
+		err := d.liveRecordingSession.Close()
 		if err != nil {
-			logging.Error("failed to close live stream manager", "error", err)
+			logging.Error("failed to close recording session", "error", err)
 		}
-		d.liveStreamManager = nil
+		d.liveRecordingSession = nil
 	}
 	return d.cleanupFiles()
 }
@@ -210,38 +188,34 @@ func (d *Director) onlineStateChanged(state twitch.StreamOnlineState) {
 	}
 }
 
+func (d *Director) streamDirectory(streamID string) string {
+	return filepath.Join(d.bufferDirectory, streamID)
+}
+
 func (d *Director) wentLive(event stream.WentLiveEvent) {
 	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if d.liveStreamManager != nil {
-		if d.liveStreamManager.StreamID() == event.StreamID {
-			logging.Warn("received went live event for stream that is already being recorded (ignoring)", "stream_id", event.StreamID)
-			return
-		}
-		err := d.liveStreamManager.Close()
-		if err != nil {
-			logging.Error("failed to close existing live stream manager", "error", err)
-			return
-		}
-		d.liveStreamManager = nil
+	if d.liveRecordingSession != nil {
+		logging.Warn("received went live event while already recording (ignoring)", "stream_id", event.StreamID)
+		return
 	}
 
-	streamBufferDir := filepath.Join(d.bufferDirectory, fmt.Sprintf("%s_%s", event.BroadcasterUserName, event.StartedAt.Format("20060102_150405")))
+	streamBufferDir := d.streamDirectory(event.StreamID)
 	err := os.MkdirAll(streamBufferDir, 0777)
 	if err != nil {
 		logging.Error("failed to create stream buffer directory", "error", err)
 		return
 	}
 
-	manager, err := live.NewRecordingStreamManager(context.Background(), event, streamBufferDir)
+	recordingSession, err := stream.StartRecording(event, streamBufferDir)
 	if err != nil {
 		logging.Error("failed to create recording stream manager", "error", err)
 		return
 	}
-	d.liveStreamManager = manager
-	logging.Info("started recording session", "username", event.BroadcasterUserName, "stream_id", manager.StreamID())
+	d.liveRecordingSession = recordingSession
+	logging.Info("started recording session", "username", event.BroadcasterUserName, "stream_id", event.StreamID)
 
 	err = d.cleanupFiles()
 	if err != nil {
@@ -249,40 +223,30 @@ func (d *Director) wentLive(event stream.WentLiveEvent) {
 	}
 }
 
-func (d *Director) getManager(streamID string) (stream.Manager, error) {
-	for manager, err := range d.readStreamManagers() {
-		if err != nil {
-			return nil, fmt.Errorf("failed to get stream managers: %w", err)
-		}
-		if streamID == manager.StreamID() {
-			return manager, nil
-		}
-	}
-	return nil, nil
-}
-
-func (d *Director) getManagerFromFolderName(folderName string) (stream.Manager, error) {
-	streamDirectory := filepath.Join(d.bufferDirectory, folderName)
+func (d *Director) getManager(streamID string) (*stream.Manager, error) {
+	streamDirectory := d.streamDirectory(streamID)
 	metadata, err := stream.ReadMetadata(streamDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read metadata for stream: %w", err)
 	}
-	if d.liveStreamManager != nil {
-		liveStreamID := d.liveStreamManager.StreamID()
+
+	streamState := stream.StateArchived
+	if d.liveRecordingSession != nil {
+		liveStreamID := d.liveRecordingSession.StreamID()
 		if metadata.ID == liveStreamID {
-			return d.liveStreamManager, nil
+			streamState = stream.StateLive
 		}
 	}
 
-	manager, err := archived.NewStreamManager(streamDirectory)
+	manager, err := stream.NewManager(streamDirectory, streamState)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stream manager for archived stream: %w", err)
+		return nil, fmt.Errorf("failed to create stream manager: %w", err)
 	}
 	return manager, nil
 }
 
-func (d *Director) readStreamManagers() iter.Seq2[stream.Manager, error] {
-	return func(yield func(stream.Manager, error) bool) {
+func (d *Director) readStreamManagers() iter.Seq2[*stream.Manager, error] {
+	return func(yield func(*stream.Manager, error) bool) {
 		dirEntries, err := os.ReadDir(d.bufferDirectory)
 		if err != nil {
 			yield(nil, fmt.Errorf("failed to list streams: %w", err))
@@ -292,7 +256,7 @@ func (d *Director) readStreamManagers() iter.Seq2[stream.Manager, error] {
 			if !entry.IsDir() {
 				continue
 			}
-			manager, err := d.getManagerFromFolderName(entry.Name())
+			manager, err := d.getManager(entry.Name())
 			if err != nil {
 				logging.Warn("failed to get stream manager for stream", "stream", entry.Name(), "error", err)
 				continue
@@ -339,114 +303,102 @@ func (d *Director) getStreamsSortedByStartTime() ([]stream.Info, error) {
 	return streams, nil
 }
 
+func (d *Director) getStreamFilesDirectory(streamID string) (string, error) {
+	streamDirectory := d.streamDirectory(streamID)
+	filesDirectory := stream.FilesDirectory(streamDirectory)
+
+	_, err := os.Stat(filesDirectory)
+	if os.IsNotExist(err) {
+		return "", nil
+	} else if err != nil {
+		return "", fmt.Errorf("failed to stat stream files directory %s: %w", filesDirectory, err)
+	}
+	return filesDirectory, nil
+}
+
+func (d *Director) getStreamCommon(streamID string) (*stream.Manager, *stream.Info, error) {
+	streamManager, err := d.getManager(streamID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get stream manager: %w", err)
+	}
+	if streamManager == nil {
+		return nil, nil, nil
+	}
+
+	streamInfo, err := streamManager.StreamInfo()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get stream info: %w", err)
+	}
+
+	return streamManager, &streamInfo, nil
+}
+
+func (d *Director) GetStreamFilesDirectory(streamID string) (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.getStreamFilesDirectory(streamID)
+}
+
+func (d *Director) GetLiveStreamFilesDirectory() (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.liveRecordingSession == nil {
+		return "", nil
+	}
+
+	return d.getStreamFilesDirectory(d.liveRecordingSession.StreamID())
+}
+
 func (d *Director) GetStreams() ([]stream.Info, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.getStreamsSortedByStartTime()
 }
 
-func (d *Director) GetStream(streamID string) (stream.Info, io.ReadSeekCloser, error) {
+func (d *Director) GetStream(ctx context.Context, streamID string) (stream.Info, io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamManager, err := d.getManager(streamID)
+	streamManager, streamInfo, err := d.getStreamCommon(streamID)
 	if err != nil {
-		return stream.Info{}, nil, fmt.Errorf("failed to get stream manager: %w", err)
+		return stream.Info{}, nil, fmt.Errorf("failed to get stream: %w", err)
 	}
-	if streamManager == nil {
+	if streamManager == nil || streamInfo == nil {
 		return stream.Info{}, nil, nil
 	}
 
-	streamInfo, err := streamManager.StreamInfo()
-	if err != nil {
-		return stream.Info{}, nil, fmt.Errorf("failed to get stream info: %w", err)
-	}
-
-	reader, size, err := streamManager.Reader()
+	reader, err := streamManager.Reader(ctx)
 	if err != nil {
 		return stream.Info{}, nil, fmt.Errorf("failed to get stream reader: %w", err)
 	}
-	streamInfo.Size = size
-	return streamInfo, reader, nil
+	return *streamInfo, reader, nil
 }
 
-func (d *Director) GetClip(streamID string, startTime, endTime time.Duration) (stream.ClipInfo, io.ReadCloser, error) {
+func (d *Director) GetClip(ctx context.Context, streamID string, startTime, endTime time.Duration) (stream.ClipInfo, io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	streamManager, err := d.getManager(streamID)
+	streamManager, streamInfo, err := d.getStreamCommon(streamID)
 	if err != nil {
-		return stream.ClipInfo{}, nil, fmt.Errorf("failed to get stream manager: %w", err)
+		return stream.ClipInfo{}, nil, fmt.Errorf("failed to get stream: %w", err)
 	}
-	if streamManager == nil {
+	if streamManager == nil || streamInfo == nil {
 		return stream.ClipInfo{}, nil, nil
 	}
 
-	streamInfo, err := streamManager.StreamInfo()
+	reader, err := streamManager.ClipReader(ctx, startTime, endTime)
 	if err != nil {
-		return stream.ClipInfo{}, nil, fmt.Errorf("failed to get stream info: %w", err)
+		return stream.ClipInfo{}, nil, fmt.Errorf("failed to create clip reader: %w", err)
 	}
 
-	streamPath, err := streamManager.StreamFilePath()
-	if err != nil {
-		return stream.ClipInfo{}, nil, fmt.Errorf("failed to resolve stream path: %w", err)
-	}
-	if streamPath == "" {
-		return stream.ClipInfo{}, nil, nil
-	}
-
-	startStr := fmt.Sprintf("%.3f", startTime.Seconds())
-	durationStr := fmt.Sprintf("%.3f", endTime.Seconds()-startTime.Seconds())
-
-	args := []string{
-		"-y",
-		"-i", streamPath,
-		"-ss", startStr,
-		"-t", durationStr,
-		"-c", "copy",
-		"-f", "mpegts",
-		"pipe:1",
-	}
-
-	cmd := exec.Command("ffmpeg", args...)
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return stream.ClipInfo{}, nil, fmt.Errorf("failed to create stdout pipe for ffmpeg: %w", err)
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		return stream.ClipInfo{}, nil, fmt.Errorf("failed to start ffmpeg command: %w", err)
-	}
-
-	readCloser := ffmpegReadCloser{
-		ReadCloser: stdoutPipe,
-		cmd:        cmd,
-	}
 	clipInfo := stream.ClipInfo{
-		Stream:    streamInfo,
+		Stream:    *streamInfo,
 		StartTime: startTime,
 		EndTime:   endTime,
 		Duration:  endTime - startTime,
 	}
-	return clipInfo, &readCloser, nil
-}
-
-func (d *Director) GetLiveManager() (*live.StreamManager, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.liveStreamManager == nil {
-		return nil, nil
-	}
-	return d.liveStreamManager, nil
-}
-
-func (d *Director) HasLiveStream() bool {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	return d.liveStreamManager != nil
+	return clipInfo, reader, nil
 }
 
 func (d *Director) Close() error {

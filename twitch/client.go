@@ -110,7 +110,7 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 	}
 }
 
-func (c *Client) handleInitialStreamState() error {
+func (c *Client) HandleInitialStreamState() error {
 	stream, err := c.getCurrentUserStream()
 	if err != nil {
 		return fmt.Errorf("failed to get current user stream: %w", err)
@@ -158,7 +158,7 @@ func (c *Client) StartEventSub() error {
 		return fmt.Errorf("failed to start eventsub client: %w", err)
 	}
 	c.unsubscribeEventSub = c.eventSubClient.Events().Subscribe(c.handleEventSubNotification)
-	err = c.handleInitialStreamState()
+	err = c.HandleInitialStreamState()
 	if err != nil {
 		return fmt.Errorf("failed to process initial stream state: %w", err)
 	}
