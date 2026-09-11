@@ -24,7 +24,7 @@ export class LiveVideo extends Component {
 			type: 'mpegts',
 			isLive: true,
 			url: this.url,
-		}
+		};
 	}
 	get config(): mpegts.Config {
 		return {
@@ -34,7 +34,7 @@ export class LiveVideo extends Component {
 			autoCleanupMaxBackwardDuration: 2 * 60,
 			autoCleanupMinBackwardDuration: 1 * 60,
 			fixAudioTimestampGap: true,
-		}
+		};
 	}
 
 	get videoElement(): HTMLVideoElement | null {

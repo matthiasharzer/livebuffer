@@ -46,7 +46,7 @@ export class LiveVideo extends Component {
 	mediaDataSource: mpegts.MediaDataSource | null = null;
 
 	@property({ attribute: false })
-	config?: mpegts.Config
+	config?: mpegts.Config;
 
 	@state()
 	enabled = true;
