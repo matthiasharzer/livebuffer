@@ -2,17 +2,7 @@ import { Task } from '@lit/task';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { Component } from '../../litutil/Component';
-
-interface StreamInfo {
-	id: string;
-	stream_state: 'live' | 'archived';
-	size_bytes: number;
-	duration_milliseconds: number;
-}
-
-interface StreamListResponse {
-	streams: StreamInfo[];
-}
+import { fetchLiveStream, type StreamInfo } from '../../services/streams';
 
 export class LiveView extends Component {
 	static styles = css`
@@ -41,18 +31,10 @@ export class LiveView extends Component {
 	@property({ attribute: false })
 	username: string | null = null;
 
-	private _streamTask = new Task(this, {
+	private _liveStreamTask = new Task(this, {
 		args: () => [this.username],
 		task: async ([username]) => {
-			if (!username) {
-				return null;
-			}
-			const response = await fetch(`/api/v1/${username}/list`);
-			if (!response.ok) {
-				throw new Error(`Failed to fetch stream list: ${response.status} ${response.statusText}`);
-			}
-			const data: StreamListResponse = await response.json();
-			return data.streams.find(stream => stream.stream_state === 'live') || null;
+			return fetchLiveStream(username || '');
 		},
 	});
 
@@ -63,16 +45,17 @@ export class LiveView extends Component {
 		const url = `/api/v1/${this.username}/live/index.m3u8`;
 
 		return html`
-			${this._streamTask.render({
-				pending: () => html`<div class="status-wrapper"><p>Loading stream information...</p></div>`,
+			${this._liveStreamTask.render({
+				pending: () =>
+					html`<div class="status-wrapper"><p>Loading live stream information...</p></div>`,
 				complete: (stream: StreamInfo | null) => {
 					if (!stream) {
-						return html`<div class="status-wrapper"><p>User ${this.username} is not live.</p></div>`;
+						return html`<div class="status-wrapper"><p>${this.username} is not live.</p></div>`;
 					}
 					return html`<lb-live-video url="${url}"></lb-live-video>`;
 				},
 				error: e =>
-					html`<div class="status-wrapper"><p>Error loading stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
+					html`<div class="status-wrapper"><p>Error loading live stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
 			})}
 		`;
 	}

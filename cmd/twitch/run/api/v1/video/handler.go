@@ -1,4 +1,4 @@
-package stream
+package video
 
 import (
 	"net/http"

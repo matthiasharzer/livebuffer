@@ -4,7 +4,7 @@ import { property, state } from 'lit/decorators.js';
 import { createRef, type Ref, ref } from 'lit/directives/ref.js';
 import { Component } from '../litutil/Component';
 
-export class LiveVideo extends Component {
+export class Video extends Component {
 	static styles = css`
 		:host {
 			display: contents;
@@ -81,10 +81,15 @@ export class LiveVideo extends Component {
 		this.player.loadSource(this.hlsSource);
 		this.player.attachMedia(this.videoElement);
 		this.player.on(Hls.Events.ERROR, (_, data) => {
+			if (this.loaded) {
+				// ignored, since this is likely a network error that occurred after seeking
+				return;
+			}
 			this.error = `Error loading video: ${data.type} - ${data.details}`;
 		});
 		this.player.on(Hls.Events.MANIFEST_PARSED, () => {
 			this.loaded = true;
+			this.dispatch('video-loaded', null, { bubbles: true, composed: true });
 			if (this.autoplay) {
 				this.videoElement?.play();
 			}
@@ -102,9 +107,9 @@ export class LiveVideo extends Component {
 				${this.error ? html`<div class="status-wrapper"><p>${this.error}</p></div>` : ''}
 				${!this.loaded && !this.error ? html`<div class="status-wrapper"><p>Loading live stream...</p></div>` : ''}
 			</div>
-			<video ${ref(this.videoElementRef)} muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
+			<video ${ref(this.videoElementRef)} ?autoplay="${this.autoplay}" muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
 		`;
 	}
 }
 
-customElements.define('lb-video', LiveVideo);
+customElements.define('lb-video', Video);
