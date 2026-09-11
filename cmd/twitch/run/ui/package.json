@@ -9,8 +9,8 @@
 	"dependencies": {
 		"@lit-labs/router": "0.1.4",
 		"@lit/task": "1.0.3",
+		"hls.js": "1.7.3",
 		"lit": "3.3.3",
-		"mpegts.js": "1.8.2",
 		"urlpattern-polyfill": "10.1.0"
 	},
 	"scripts": {

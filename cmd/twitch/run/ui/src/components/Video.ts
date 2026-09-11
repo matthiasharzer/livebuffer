@@ -1,7 +1,7 @@
+import Hls, { type HlsConfig } from 'hls.js';
 import { css, html, type PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { createRef, type Ref, ref } from 'lit/directives/ref.js';
-import mpegts from 'mpegts.js';
 import { Component } from '../litutil/Component';
 
 export class LiveVideo extends Component {
@@ -43,14 +43,15 @@ export class LiveVideo extends Component {
 	autoplay: boolean = false;
 
 	@property({ attribute: false })
-	mediaDataSource: mpegts.MediaDataSource | null = null;
+	hlsConfig?: Partial<HlsConfig>;
 
 	@property({ attribute: false })
-	config?: mpegts.Config;
+	hlsSource: string | null = null;
 
 	@state()
 	enabled = true;
-	player: mpegts.Player | null = null;
+
+	player: Hls | null = null;
 	videoElementRef: Ref<HTMLVideoElement> = createRef();
 
 	@state()
@@ -68,18 +69,25 @@ export class LiveVideo extends Component {
 		if (!this.videoElement) {
 			return;
 		}
-		if (!this.mediaDataSource) {
+		if (!this.hlsSource) {
+			this.error = 'No HLS source provided.';
 			return;
 		}
-		this.player = mpegts.createPlayer(this.mediaDataSource, this.config);
-		this.player.attachMediaElement(this.videoElement);
-		this.player.load();
-		this.player.play();
-		this.player.on(mpegts.Events.ERROR, (errorType, errorDetail) => {
-			this.error = `Error loading video: ${errorType} - ${errorDetail}`;
+		if (!Hls.isSupported()) {
+			this.error = 'HLS playback is not supported in this browser.';
+			return;
+		}
+		this.player = new Hls(this.hlsConfig);
+		this.player.loadSource(this.hlsSource);
+		this.player.attachMedia(this.videoElement);
+		this.player.on(Hls.Events.ERROR, (_, data) => {
+			this.error = `Error loading video: ${data.type} - ${data.details}`;
 		});
-		this.player.on(mpegts.Events.MEDIA_INFO, () => {
+		this.player.on(Hls.Events.MANIFEST_PARSED, () => {
 			this.loaded = true;
+			if (this.autoplay) {
+				this.videoElement?.play();
+			}
 		});
 	}
 
@@ -94,7 +102,7 @@ export class LiveVideo extends Component {
 				${this.error ? html`<div class="status-wrapper"><p>${this.error}</p></div>` : ''}
 				${!this.loaded && !this.error ? html`<div class="status-wrapper"><p>Loading live stream...</p></div>` : ''}
 			</div>
-			<video ${ref(this.videoElementRef)} ?autoplay=${this.autoplay} muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
+			<video ${ref(this.videoElementRef)} muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
 		`;
 	}
 }

@@ -60,7 +60,8 @@ export class LiveView extends Component {
 		if (!this.username) {
 			return html`<div class="status-wrapper"><p>Missing username in the URL.</p></div>`;
 		}
-		const url = `/api/v1/${this.username}/live`;
+		const url = `/api/v1/${this.username}/live/index.m3u8`;
+
 		return html`
 			${this._streamTask.render({
 				pending: () => html`<div class="status-wrapper"><p>Loading stream information...</p></div>`,
