@@ -1,3 +1,6 @@
 import './App.ts';
 import './components/LiveVideo.ts';
-import './views/watch/view.ts';
+import './components/Video.ts';
+import './views/live/view.ts';
+import './views/notfound/view.ts';
+

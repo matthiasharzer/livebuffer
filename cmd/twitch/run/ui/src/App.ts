@@ -1,8 +1,7 @@
-import { css, html, type PropertyValues } from 'lit';
+import { Router } from '@lit-labs/router';
+import { css, html } from 'lit';
 import { Component } from './litutil/Component.ts';
-import { router } from './services/router.ts';
-
-const routes = [{ path: '/:username/watch', component: 'lb-watch-view' }];
+import 'urlpattern-polyfill';
 
 export class App extends Component {
 	static styles = css`
@@ -14,28 +13,22 @@ export class App extends Component {
 			height: 100%;
 		}
 
-		output {
+		main {
 			width: 100%;
 			height: 100%;
 		}
 	`;
 
-	protected firstUpdated(_changedProperties: PropertyValues): void {
-		super.firstUpdated(_changedProperties);
-
-		const routerOutlet = this.renderRoot.querySelector('#router-outlet') as HTMLElement;
-		if (!routerOutlet) {
-			console.error('Router outlet not found');
-			return;
-		}
-
-		router.setOutlet(routerOutlet);
-		router.setRoutes(routes);
-	}
+	private router = new Router(this, [
+		{ path: '/:username/live', render: ({ username }) => html`<lb-live-view .username=${username ?? null}></lb-live-view>` },
+		{ path: '/*', render: () => html`<lb-not-found-view></lb-not-found-view>` },
+	])
 
 	render() {
 		return html`
-			<output id="router-outlet"></output>
+			<main>
+				${this.router.outlet()}
+			</main>
 		`;
 	}
 }
