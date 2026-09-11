@@ -410,23 +410,6 @@ func (d *Director) GetClip(ctx context.Context, streamID string, startTime, endT
 	return clipInfo, reader, nil
 }
 
-func (d *Director) GetBroadcaster() (*stream.BroadcastWriter, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.liveRecordingSession == nil {
-		return nil, nil
-	}
-	return d.liveRecordingSession.Broadcaster, nil
-}
-
-func (d *Director) HasLiveStream() bool {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	return d.liveRecordingSession != nil
-}
-
 func (d *Director) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

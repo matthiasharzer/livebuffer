@@ -12,8 +12,6 @@ import (
 )
 
 type RecordingSession struct {
-	Broadcaster *BroadcastWriter
-
 	streamID        string
 	recorder        *twitch.Recorder
 	hlsWriter       io.WriteCloser
@@ -76,7 +74,6 @@ func StartRecording(event WentLiveEvent, streamDirectory string) (*RecordingSess
 		streamID:        event.StreamID,
 		recorder:        recorder,
 		ctx:             recordingContext,
-		Broadcaster:     newBroadcastWriter(),
 		cancelRecording: cancel,
 		hlsWriter:       buffer,
 	}
@@ -101,8 +98,7 @@ func (rs *RecordingSession) start() error {
 	}
 
 	go func() {
-		target := io.MultiWriter(rs.hlsWriter, rs.Broadcaster)
-		_, err := io.Copy(target, reader)
+		_, err := io.Copy(rs.hlsWriter, reader)
 		if err != nil {
 			logging.Error("failed to write to video store", "error", err)
 		}
