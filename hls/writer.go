@@ -16,8 +16,8 @@ type writer struct {
 }
 
 func NewWriter(ctx context.Context, directory string) (io.WriteCloser, error) {
-	segmentFilepath := filepath.Join(directory, ChunkFilename)
-	playlistFilepath := filepath.Join(directory, IndexFilename)
+	segmentFilepath := filepath.Join(directory, chunkFilename)
+	playlistFilepath := filepath.Join(directory, indexFilename)
 
 	args := []string{
 		"-i", "pipe:0",
@@ -25,7 +25,7 @@ func NewWriter(ctx context.Context, directory string) (io.WriteCloser, error) {
 
 		// HLS options
 		"-f", "hls",
-		"-hls_time", strconv.Itoa(ChunkSizeSeconds),
+		"-hls_time", strconv.Itoa(chunkSizeSeconds),
 		"-hls_list_size", "0",
 		"-hls_playlist_type", "event",
 		"-hls_segment_filename", segmentFilepath,

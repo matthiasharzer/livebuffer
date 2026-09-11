@@ -13,7 +13,7 @@ import (
 )
 
 func createSnapshot(directory string) (string, func(), error) {
-	playlistFilepath := filepath.Join(directory, IndexFilename)
+	playlistFilepath := filepath.Join(directory, indexFilename)
 
 	playlistBytes, err := os.ReadFile(playlistFilepath)
 	if err != nil {

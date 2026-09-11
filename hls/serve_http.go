@@ -15,8 +15,8 @@ func ServeHTTP(streamFilesDirectory string, filename string) http.HandlerFunc {
 
 		filename = filepath.Clean(filename)
 
-		isIndexFile := filename == IndexFilename
-		isChunkFile := filepath.Ext(filename) == ChunkExtension
+		isIndexFile := filename == indexFilename
+		isChunkFile := filepath.Ext(filename) == chunkExtension
 
 		if isIndexFile || isChunkFile {
 			fullPath := filepath.Join(streamFilesDirectory, filename)
