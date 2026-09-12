@@ -1,6 +1,8 @@
 ---
 name: Bug
 about: Report erroneous behavior that needs to be fixed.
+tags:
+	- Bug
 ---
 
 ### What is this bug about?

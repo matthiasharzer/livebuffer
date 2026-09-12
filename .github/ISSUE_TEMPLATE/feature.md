@@ -1,6 +1,8 @@
 ---
 name: Feature
 about: Request or describe new functionality to be added.
+tags:
+	- Feature
 ---
 
 ### What is this feature about?
