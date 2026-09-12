@@ -1,8 +1,7 @@
 ---
 name: Task
 about: Describe something that needs to get done.
-tags: 
-	- Task
+labels: Task
 ---
 
 ### What is this task about?
