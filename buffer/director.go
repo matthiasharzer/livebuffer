@@ -104,7 +104,13 @@ func (d *Director) GetLiveStreamFilesDirectory(username string) (string, error) 
 	return d.repository.StreamFilesDirectory(liveStreamID), nil
 }
 
+// GetStreamFilesDirectory returns the directory for the hls playlist files or an empty string, if the streamID does
+// not refer to an existing string
 func (d *Director) GetStreamFilesDirectory(streamID string) (string, error) {
+	directory := d.repository.StreamDirectory(streamID)
+	if !stream.IsStreamDirectory(directory) {
+		return "", nil
+	}
 	return d.repository.StreamFilesDirectory(streamID), nil
 }
 
