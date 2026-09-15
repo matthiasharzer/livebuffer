@@ -32,7 +32,6 @@ func NewDirector(repository *vod.Repository, broadcasterMonitors []*broadcaster.
 		unsubscriber:                 nil,
 		mu:                           sync.RWMutex{},
 	}
-	director.cleanup()
 
 	for _, monitor := range broadcasterMonitors {
 		director.monitorByBroadcasterUserName[monitor.BroadcasterUserName()] = monitor
@@ -42,6 +41,7 @@ func NewDirector(repository *vod.Repository, broadcasterMonitors []*broadcaster.
 		})
 		director.unsubscriber = append(director.unsubscriber, unsubscribe)
 	}
+	director.Cleanup()
 
 	return director, nil
 }
