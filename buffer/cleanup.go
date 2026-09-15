@@ -11,7 +11,10 @@ import (
 	"github.com/matthiasharzer/livebuffer/util/iterutil"
 )
 
-func (d *Director) cleanup() {
+func (d *Director) Cleanup() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	for username := range d.monitorByBroadcasterUserName {
 		err := d.cleanupUser(username)
 		if err != nil {
