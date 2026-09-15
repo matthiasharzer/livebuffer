@@ -1,8 +1,11 @@
 package stream
 
 import (
+	"regexp"
 	"time"
 )
+
+var streamIDRegex = regexp.MustCompile("[a-zA-Z0-9_-]+")
 
 type State string
 
@@ -27,4 +30,8 @@ type ClipInfo struct {
 	StartTime     time.Duration
 	EndTime       time.Duration
 	Duration      time.Duration
+}
+
+func IsStreamID(streamID string) bool {
+	return streamIDRegex.MatchString(streamID)
 }

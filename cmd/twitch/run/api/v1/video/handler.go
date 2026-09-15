@@ -7,11 +7,17 @@ import (
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/hls"
 	"github.com/matthiasharzer/livebuffer/logging"
+	"github.com/matthiasharzer/livebuffer/stream"
 )
 
 func Handler(director *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		streamID := r.PathValue("streamID")
+		if !stream.IsStreamID(streamID) {
+			http.Error(w, "invalid stream_id", http.StatusBadRequest)
+			return
+		}
+
 		cleanPath := filepath.Clean(r.URL.Path)
 		filename := filepath.Base(cleanPath)
 

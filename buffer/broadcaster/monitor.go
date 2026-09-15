@@ -60,9 +60,6 @@ func (m *Monitor) subscribeToOnlineChannel() {
 }
 
 func (m *Monitor) onlineStateChanged(state twitch.StreamOnlineState) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if state.IsOnline {
 		startedAt := time.Now()
 		if state.StartedAt != nil {
@@ -75,16 +72,11 @@ func (m *Monitor) onlineStateChanged(state twitch.StreamOnlineState) {
 			StartedAt:           startedAt,
 		})
 	} else {
-		err := m.stopRecording()
-		if err != nil {
-			logging.Error("failed to stop recording session", "error", err)
-		}
+		m.wentOffline()
 	}
 }
 
-func (m *Monitor) wentLive(event stream.WentLiveEvent) {
-	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName)
-
+func (m *Monitor) startRecording(event stream.WentLiveEvent) {
 	if m.liveRecordingSession != nil {
 		logging.Warn("received went live event while already recording (ignoring)", "stream_id", event.StreamID)
 		return
@@ -102,14 +94,30 @@ func (m *Monitor) wentLive(event stream.WentLiveEvent) {
 		logging.Error("failed to create recording stream manager", "error", err)
 		return
 	}
-	m.recordingStateChannel.Publish(RecordingStateRecording)
 	m.liveRecordingSession = recordingSession
+}
+
+func (m *Monitor) wentLive(event stream.WentLiveEvent) {
+	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName)
+	m.mu.Lock()
+	m.startRecording(event)
+	m.mu.Unlock()
+
+	m.recordingStateChannel.Publish(RecordingStateRecording)
 	logging.Info("started recording session", "username", event.BroadcasterUserName, "stream_id", event.StreamID)
 }
 
-func (m *Monitor) stopRecording() error {
-	logging.Info("stopping recording session", "username", m.broadcasterUserName)
+func (m *Monitor) wentOffline() {
+	logging.Info("stream went offline, stopping recording", "username", m.broadcasterUserName)
+	m.mu.Lock()
+	m.stopRecording()
+	m.mu.Unlock()
+
 	m.recordingStateChannel.Publish(RecordingStateStopped)
+	logging.Info("stopped recording session", "username", m.broadcasterUserName)
+}
+
+func (m *Monitor) stopRecording() {
 	if m.liveRecordingSession != nil {
 		err := m.liveRecordingSession.Close()
 		if err != nil {
@@ -117,7 +125,6 @@ func (m *Monitor) stopRecording() error {
 		}
 		m.liveRecordingSession = nil
 	}
-	return nil
 }
 
 func (m *Monitor) RecordingStateChannel() observer.ReadonlyChannel[RecordingState] {
@@ -159,5 +166,6 @@ func (m *Monitor) Close() error {
 		m.unsubscribeOnlineChannel()
 		m.unsubscribeOnlineChannel = nil
 	}
-	return m.stopRecording()
+	m.stopRecording()
+	return nil
 }
