@@ -3,7 +3,7 @@ package filter
 import (
 	"strings"
 
-	"github.com/matthiasharzer/livebuffer/buffer/stream"
+	"github.com/matthiasharzer/livebuffer/stream"
 )
 
 type Func = func(manager stream.Manager) bool

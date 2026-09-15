@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/clip"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/download"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/list"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/live"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/video"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/ui"
-	"github.com/matthiasharzer/livebuffer/connectorneedrename"
 	"github.com/matthiasharzer/livebuffer/util/httputil"
 )
 
-func GetMux(director *connectorneedrename.Director, usernames []string, eventSubHandler http.Handler) *http.ServeMux {
+func GetMux(director *buffer.Director, usernames []string, eventSubHandler http.Handler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	for _, username := range usernames {

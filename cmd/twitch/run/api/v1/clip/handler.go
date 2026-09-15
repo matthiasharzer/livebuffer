@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/matthiasharzer/livebuffer/connectorneedrename"
+	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 	"github.com/matthiasharzer/livebuffer/util/ioutil"
 )
 
-func Handler(directory *connectorneedrename.Director) http.HandlerFunc {
+func Handler(directory *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		streamID := r.URL.Query().Get("stream_id")
 		if streamID == "" {
