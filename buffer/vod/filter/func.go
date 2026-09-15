@@ -13,3 +13,9 @@ func ByBroadcasterName(name string) Func {
 		return strings.EqualFold(manager.Meta().BroadcasterUserName, name)
 	}
 }
+
+func None() Func {
+	return func(manager stream.Manager) bool {
+		return true
+	}
+}

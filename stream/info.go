@@ -6,12 +6,18 @@ import (
 
 type State string
 
+const (
+	StateArchived State = "archived"
+	StateLive     State = "live"
+)
+
 type Details struct {
 	ID                  string
 	Title               string
 	BroadcasterUserName string
 	StartedAt           time.Time
 	Duration            time.Duration
+	StreamState         State
 	Directory           string
 	Size                int64
 }

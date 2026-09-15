@@ -5,6 +5,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/buffer/broadcaster"
 	"github.com/matthiasharzer/livebuffer/buffer/vod"
+	"github.com/matthiasharzer/livebuffer/stream"
 )
 
 type StreamState string
@@ -27,6 +28,15 @@ func NewDirector(repository *vod.Repository, broadcasterMonitors map[string]*bro
 		broadcasterMonitors: broadcasterMonitors,
 		mu:                  sync.RWMutex{},
 	}
+}
+
+func (d *Director) getStreamState(streamID string) stream.State {
+	for _, monitor := range d.broadcasterMonitors {
+		if monitor.GetLiveStreamID() == streamID && monitor.IsLive() {
+			return stream.StateLive
+		}
+	}
+	return stream.StateArchived
 }
 
 func (d *Director) GetStreamStateFunc() func(streamID string) StreamState {
@@ -63,7 +73,8 @@ func (d *Director) GetLiveStreamFilesDirectory(username string) (string, error) 
 	if !liveMonitor.IsLive() {
 		return "", nil
 	}
-	return d.Repository.GetStreamFilesDirectory(liveMonitor.GetLiveStreamID())
+	streamDir := d.Repository.StreamDirectory(liveMonitor.GetLiveStreamID())
+	return stream.FilesDirectory(streamDir), nil
 }
 
 func (d *Director) Close() error {
