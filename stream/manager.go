@@ -10,8 +10,8 @@ import (
 )
 
 type Manager struct {
+	StreamDirectory string
 	meta            Metadata
-	streamDirectory string
 }
 
 func NewManager(streamDirectory string) (*Manager, error) {
@@ -22,12 +22,12 @@ func NewManager(streamDirectory string) (*Manager, error) {
 
 	return &Manager{
 		meta:            metadata,
-		streamDirectory: streamDirectory,
+		StreamDirectory: streamDirectory,
 	}, nil
 }
 
 func (m *Manager) StreamFilesDirectory() string {
-	return FilesDirectory(m.streamDirectory)
+	return FilesDirectory(m.StreamDirectory)
 }
 
 func (m *Manager) Meta() Metadata {
@@ -46,7 +46,7 @@ func (m *Manager) GetDetails(state State) (Details, error) {
 		BroadcasterUserName: m.meta.BroadcasterUserName,
 		StartedAt:           m.meta.StartedAt,
 		Duration:            hlsInfo.Duration,
-		Directory:           m.streamDirectory,
+		Directory:           m.StreamDirectory,
 		Size:                hlsInfo.Size,
 		StreamState:         state,
 	}, nil
