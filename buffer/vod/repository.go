@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/matthiasharzer/livebuffer/buffer/vod/filter"
+	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/stream"
 )
 
@@ -68,8 +69,10 @@ func (r *Repository) ReadAllStreams() iter.Seq2[stream.Manager, error] {
 
 			manager, err := r.ReadStream(streamID)
 			if err != nil {
-				yield(stream.Manager{}, fmt.Errorf("failed to read stream metadata: %w", err))
-				return
+				if !yield(stream.Manager{}, fmt.Errorf("failed to read stream metadata: %w", err)) {
+					return
+				}
+				continue
 			}
 			if manager == nil {
 				continue
@@ -86,11 +89,14 @@ func (r *Repository) ReadStreams(filterFunc filter.Func) iter.Seq2[stream.Manage
 	return filter.Apply(r.ReadAllStreams(), filterFunc)
 }
 
-func (r *Repository) GetStreamsSortedByStartTime(filterFunc filter.Func) ([]stream.Manager, error) {
+// GetStreamsSortedByStartTimeBestEffort retrieves all streams on disk by best effort, ignoring errors and including
+// non-error read streams only
+func (r *Repository) GetStreamsSortedByStartTimeBestEffort(filterFunc filter.Func) []stream.Manager {
 	var streams []stream.Manager
 	for streamInfo, err := range r.ReadStreams(filterFunc) {
 		if err != nil {
-			return nil, fmt.Errorf("failed to read stream infos: %w", err)
+			logging.Warn("failed to read stream. ignoring", "error", err)
+			continue
 		}
 		streams = append(streams, streamInfo)
 	}
@@ -99,7 +105,7 @@ func (r *Repository) GetStreamsSortedByStartTime(filterFunc filter.Func) ([]stre
 		return a.Meta().StartedAt.Compare(b.Meta().StartedAt)
 	})
 
-	return streams, nil
+	return streams
 }
 
 func (r *Repository) Close() error {

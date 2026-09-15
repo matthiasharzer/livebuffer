@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/matthiasharzer/livebuffer/buffer/vod/filter"
+	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/stream"
 )
 
@@ -35,18 +36,16 @@ func (d *Director) getStreamCommon(streamID string) (*streamCommon, error) {
 	}, nil
 }
 
-func (d *Director) getStreamDetails(filterFunc filter.Func) ([]stream.Details, error) {
-	managers, err := d.repository.GetStreamsSortedByStartTime(filterFunc)
-	if err != nil {
-		return nil, fmt.Errorf("failed reading streams: %w", err)
-	}
+func (d *Director) getStreamDetailsBestEffort(filterFunc filter.Func) ([]stream.Details, error) {
+	managers := d.repository.GetStreamsSortedByStartTimeBestEffort(filterFunc)
 
 	var allDetails []stream.Details
 	for _, manager := range managers {
 		state := d.getStreamState(manager.StreamID())
 		details, err := manager.GetDetails(state)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read stream details of %s: %w", manager.StreamID(), err)
+			logging.Warn("failed to retrieve stream details", "stream_id", manager.StreamID(), "error", err)
+			continue
 		}
 		allDetails = append(allDetails, details)
 	}
@@ -103,9 +102,9 @@ func (d *Director) GetStream(streamID string) (*stream.Details, error) {
 }
 
 func (d *Director) GetStreams() ([]stream.Details, error) {
-	return d.getStreamDetails(filter.None())
+	return d.getStreamDetailsBestEffort(filter.None())
 }
 
 func (d *Director) GetStreamsByBroadcaster(username string) ([]stream.Details, error) {
-	return d.getStreamDetails(filter.ByBroadcasterName(username))
+	return d.getStreamDetailsBestEffort(filter.ByBroadcasterName(username))
 }
