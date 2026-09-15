@@ -109,9 +109,3 @@ func (d *Director) GetStreams() ([]stream.Details, error) {
 func (d *Director) GetStreamsByBroadcaster(username string) ([]stream.Details, error) {
 	return d.getStreamDetails(filter.ByBroadcasterName(username))
 }
-
-func (d *Director) GetStreamFilesDirectory(streamID string) (string, error) {
-	// TODO: needed?
-	streamDir := d.Repository.StreamDirectory(streamID)
-	return stream.FilesDirectory(streamDir), nil
-}

@@ -73,8 +73,11 @@ func (d *Director) GetLiveStreamFilesDirectory(username string) (string, error) 
 	if !liveMonitor.IsLive() {
 		return "", nil
 	}
-	streamDir := d.Repository.StreamDirectory(liveMonitor.GetLiveStreamID())
-	return stream.FilesDirectory(streamDir), nil
+	return d.Repository.StreamFilesDirectory(liveMonitor.GetLiveStreamID()), nil
+}
+
+func (d *Director) GetStreamFilesDirectory(streamID string) (string, error) {
+	return d.Repository.StreamFilesDirectory(streamID), nil
 }
 
 func (d *Director) Close() error {

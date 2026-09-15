@@ -15,6 +15,7 @@ import (
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/twitch/eventsub"
 	"github.com/matthiasharzer/livebuffer/util/fsutil"
+	"github.com/matthiasharzer/livebuffer/util/funcutils"
 	"github.com/matthiasharzer/livebuffer/util/stringutil"
 	"github.com/nicklaw5/helix/v2"
 	"github.com/spf13/cobra"
@@ -253,6 +254,10 @@ var Command = &cobra.Command{
 		}()
 
 		director, err := getDirector(userContexts, bufferDirectory)
+		if err != nil {
+			return fmt.Errorf("failed to create director: %w", err)
+		}
+		defer funcutils.LogError(director.Close, "failed to close director")
 
 		for _, context := range userContexts {
 			if devNoEventSub {
