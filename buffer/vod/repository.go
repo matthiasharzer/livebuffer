@@ -33,6 +33,8 @@ func (r *Repository) StreamFilesDirectory(streamID string) string {
 	return stream.FilesDirectory(r.StreamDirectory(streamID))
 }
 
+// ReadStream reads the stream manager with the given streamID, if the given streamID resolves to a valid stream
+// directory. Will return nil if the directory is not a stream directory. Errors are critical only
 func (r *Repository) ReadStream(streamID string) (*stream.Manager, error) {
 	streamDirectory := r.StreamDirectory(streamID)
 	_, err := os.Stat(streamDirectory)
@@ -53,6 +55,7 @@ func (r *Repository) ReadStream(streamID string) (*stream.Manager, error) {
 	return manager, nil
 }
 
+// ReadAllStreams reads all known streams from the buffer directory. Non-stream directories or files will be skipped
 func (r *Repository) ReadAllStreams() iter.Seq2[stream.Manager, error] {
 	return func(yield func(stream.Manager, error) bool) {
 		dirEntries, err := os.ReadDir(r.bufferDirectory)
@@ -75,6 +78,10 @@ func (r *Repository) ReadAllStreams() iter.Seq2[stream.Manager, error] {
 				continue
 			}
 			if manager == nil {
+				continue
+			}
+			if manager.StreamID() != entry.Name() {
+				logging.Warn("found stream in unexpected directory (skipping)", "stream_id", manager.StreamID(), "directory_name", entry.Name())
 				continue
 			}
 
