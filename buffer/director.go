@@ -33,6 +33,11 @@ func NewDirector(repository *vod.Repository, broadcasterMonitors []*broadcaster.
 		unsubscriber:                 nil,
 		mu:                           sync.RWMutex{},
 	}
+	err := director.cleanup()
+	if err != nil {
+		_ = director.Close()
+		return nil, fmt.Errorf("failed to cleanup buffer directory initially: %w", err)
+	}
 
 	for _, monitor := range broadcasterMonitors {
 		director.monitorByBroadcasterUserName[monitor.BroadcasterUserName()] = monitor
@@ -43,17 +48,12 @@ func NewDirector(repository *vod.Repository, broadcasterMonitors []*broadcaster.
 		director.unsubscriber = append(director.unsubscriber, unsubscribe)
 	}
 
-	err := director.cleanup()
-	if err != nil {
-		return nil, fmt.Errorf("failed to cleanup buffer directory initially: %w", err)
-	}
-
 	return director, nil
 }
 
 func (d *Director) onRecordingStateChange(username string, state broadcaster.RecordingState) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// we cleanup on all recording state updates, just to be sure, even though recording running should be enough
 	err := d.cleanupUser(username)
@@ -64,7 +64,7 @@ func (d *Director) onRecordingStateChange(username string, state broadcaster.Rec
 
 func (d *Director) getStreamState(streamID string) stream.State {
 	for _, monitor := range d.monitorByBroadcasterUserName {
-		if monitor.GetLiveStreamID() == streamID && monitor.IsLive() {
+		if monitor.GetLiveStreamID() == streamID {
 			return stream.StateLive
 		}
 	}
@@ -102,10 +102,11 @@ func (d *Director) GetLiveStreamFilesDirectory(username string) (string, error) 
 	if !ok {
 		return "", nil
 	}
-	if !liveMonitor.IsLive() {
+	liveStreamID := liveMonitor.GetLiveStreamID()
+	if liveStreamID == "" {
 		return "", nil
 	}
-	return d.repository.StreamFilesDirectory(liveMonitor.GetLiveStreamID()), nil
+	return d.repository.StreamFilesDirectory(liveStreamID), nil
 }
 
 func (d *Director) GetStreamFilesDirectory(streamID string) (string, error) {

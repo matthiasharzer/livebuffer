@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-var streamIDRegex = regexp.MustCompile("[a-zA-Z0-9_-]+")
+var streamIDRegex = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
 
 type State string
 
