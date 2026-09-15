@@ -76,32 +76,38 @@ func (m *Monitor) onlineStateChanged(state twitch.StreamOnlineState) {
 	}
 }
 
-func (m *Monitor) startRecording(event stream.WentLiveEvent) {
+func (m *Monitor) startRecording(event stream.WentLiveEvent) bool {
 	if m.liveRecordingSession != nil {
 		logging.Warn("received went live event while already recording (ignoring)", "stream_id", event.StreamID)
-		return
+		return false
 	}
 
 	streamBufferDir := m.streamDirectory(event.StreamID)
 	err := os.MkdirAll(streamBufferDir, 0777)
 	if err != nil {
 		logging.Error("failed to create stream buffer directory", "error", err)
-		return
+		return false
 	}
 
 	recordingSession, err := stream.StartRecording(event, streamBufferDir)
 	if err != nil {
 		logging.Error("failed to create recording stream manager", "error", err)
-		return
+		return false
 	}
 	m.liveRecordingSession = recordingSession
+
+	return true
 }
 
 func (m *Monitor) wentLive(event stream.WentLiveEvent) {
 	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName)
 	m.mu.Lock()
-	m.startRecording(event)
+	success := m.startRecording(event)
 	m.mu.Unlock()
+
+	if !success {
+		return
+	}
 
 	m.recordingStateChannel.Publish(RecordingStateRecording)
 	logging.Info("started recording session", "username", event.BroadcasterUserName, "stream_id", event.StreamID)
