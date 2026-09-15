@@ -8,7 +8,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
-	stream2 "github.com/matthiasharzer/livebuffer/stream"
+	"github.com/matthiasharzer/livebuffer/stream"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
 )
@@ -20,7 +20,7 @@ type Monitor struct {
 	broadcasterUserName      string
 	onlineChannel            observer.ReadonlyChannel[twitch.StreamOnlineState]
 	unsubscribeOnlineChannel observer.UnsubscribeFunc
-	liveRecordingSession     *stream2.RecordingSession
+	liveRecordingSession     *stream.RecordingSession
 	streamDirectory          StreamDirectoryFunc
 
 	mu sync.Mutex
@@ -48,6 +48,7 @@ func NewMonitor(maxStreams int, username string, onlineChannel observer.Readonly
 		streamDirectory:     streamDirectory,
 		mu:                  sync.Mutex{},
 	}
+	// TODO: Cleanup
 	//err := monitor.cleanupFiles()
 	//if err != nil {
 	//	return nil, err
@@ -56,40 +57,6 @@ func NewMonitor(maxStreams int, username string, onlineChannel observer.Readonly
 	monitor.subscribeToOnlineChannel()
 	return monitor, nil
 }
-
-//func (m *Monitor) cleanupFiles() error {
-//	broadcasterStreams, err := m.state.GetStreamsByBroadcaster(m.broadcasterUserName)
-//	if err != nil {
-//		return fmt.Errorf("failed to read broadcaster streams: %w", err)
-//	}
-//	if len(broadcasterStreams) <= m.maxStreams {
-//		return nil
-//	}
-//
-//	slices.SortStableFunc(broadcasterStreams, func(a, b stream.Details) int {
-//		return a.StartedAt.Compare(b.StartedAt)
-//	})
-//
-//	var liveStreamID string
-//	if m.liveRecordingSession != nil {
-//		liveStreamID = m.liveRecordingSession.StreamID()
-//	}
-//
-//	streamsToDelete := broadcasterStreams[:len(broadcasterStreams)-m.maxStreams]
-//	for _, streamInfo := range streamsToDelete {
-//		if streamInfo.ID == liveStreamID {
-//			// This should never happen, but just in case, we skip deleting the live stream
-//			logging.Warn("skipping deletion of live stream", "stream", streamInfo.ID, "directory", streamInfo.Directory)
-//			continue
-//		}
-//		err := os.RemoveAll(streamInfo.Directory)
-//		if err != nil {
-//			return fmt.Errorf("failed to delete buffered stream %s: %w", streamInfo.Directory, err)
-//		}
-//		logging.Info("deleted buffered stream", "stream", streamInfo.ID, "directory", streamInfo.Directory)
-//	}
-//	return nil
-//}
 
 func (m *Monitor) subscribeToOnlineChannel() {
 	m.unsubscribeOnlineChannel = m.onlineChannel.Subscribe(m.onlineStateChanged)
@@ -104,21 +71,21 @@ func (m *Monitor) onlineStateChanged(state twitch.StreamOnlineState) {
 		if state.StartedAt != nil {
 			startedAt = *state.StartedAt
 		}
-		m.wentLive(stream2.WentLiveEvent{
+		m.wentLive(stream.WentLiveEvent{
 			StreamID:            state.StreamID,
 			Title:               state.Title,
 			BroadcasterUserName: state.BroadcasterUserName,
 			StartedAt:           startedAt,
 		})
 	} else {
-		err := m.stopRecordingStop()
+		err := m.stopRecording()
 		if err != nil {
 			logging.Error("failed to stop recording session", "error", err)
 		}
 	}
 }
 
-func (m *Monitor) wentLive(event stream2.WentLiveEvent) {
+func (m *Monitor) wentLive(event stream.WentLiveEvent) {
 	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName)
 
 	if m.liveRecordingSession != nil {
@@ -133,7 +100,7 @@ func (m *Monitor) wentLive(event stream2.WentLiveEvent) {
 		return
 	}
 
-	recordingSession, err := stream2.StartRecording(event, streamBufferDir)
+	recordingSession, err := stream.StartRecording(event, streamBufferDir)
 	if err != nil {
 		logging.Error("failed to create recording stream manager", "error", err)
 		return
@@ -147,7 +114,7 @@ func (m *Monitor) wentLive(event stream2.WentLiveEvent) {
 	//}
 }
 
-func (m *Monitor) stopRecordingStop() error {
+func (m *Monitor) stopRecording() error {
 	logging.Info("stopping recording session", "username", m.broadcasterUserName)
 	if m.liveRecordingSession != nil {
 		err := m.liveRecordingSession.Close()
@@ -183,5 +150,5 @@ func (m *Monitor) Close() error {
 		m.unsubscribeOnlineChannel()
 		m.unsubscribeOnlineChannel = nil
 	}
-	return m.stopRecordingStop()
+	return m.stopRecording()
 }

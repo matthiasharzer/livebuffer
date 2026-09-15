@@ -15,7 +15,7 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 		cleanPath := filepath.Clean(r.URL.Path)
 		filename := filepath.Base(cleanPath)
 
-		filesDirectory, err := director.Repository.GetStreamFilesDirectory(streamID)
+		filesDirectory, err := director.GetStreamFilesDirectory(streamID)
 		if err != nil {
 			logging.Error("failed to retrieve stream files directory", "error", err)
 			http.Error(w, "failed to retrieve stream files", http.StatusInternalServerError)

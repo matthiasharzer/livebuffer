@@ -11,7 +11,7 @@ import (
 
 func Handler(director *buffer.Director, username string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		allStreams, err := director.Repository.GetStreamsByBroadcaster(username)
+		allStreams, err := director.GetStreamsByBroadcaster(username)
 		if err != nil {
 			logging.Error("failed to retrieve streams", "error", err)
 			http.Error(w, "failed to retrieve streams", http.StatusInternalServerError)
