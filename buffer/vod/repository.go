@@ -28,6 +28,10 @@ func (r *Repository) StreamDirectory(streamID string) string {
 	return filepath.Join(r.bufferDirectory, streamID)
 }
 
+func (r *Repository) StreamFilesDirectory(streamID string) string {
+	return stream.FilesDirectory(r.StreamDirectory(streamID))
+}
+
 func (r *Repository) ReadStream(streamID string) (*stream.Manager, error) {
 	streamDirectory := r.StreamDirectory(streamID)
 	_, err := os.Stat(streamDirectory)
