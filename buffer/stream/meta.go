@@ -56,3 +56,12 @@ func ReadMetadata(streamDir string) (Metadata, error) {
 
 	return metadata, nil
 }
+
+func IsStreamDirectory(streamDir string) bool {
+	metadataFile := MetadataFile(streamDir)
+	info, err := os.Stat(metadataFile)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}

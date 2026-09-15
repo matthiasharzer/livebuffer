@@ -40,20 +40,20 @@ func NewDirector(maxStreams int, bufferBaseDirectory string, username string, on
 		return nil, errors.New("ffmpeg and ffprobe are required. Please install both to use the director")
 	}
 
-	bufferDir := filepath.Join(bufferBaseDirectory, username)
-	err := os.MkdirAll(bufferDir, 0777)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create buffer directory: %w", err)
-	}
+	//bufferDir := filepath.Join(bufferBaseDirectory, username)
+	//err := os.MkdirAll(bufferDir, 0777)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to create buffer directory: %w", err)
+	//}
 
 	director := &Director{
 		maxStreams:      maxStreams,
-		bufferDirectory: bufferDir,
+		bufferDirectory: bufferBaseDirectory,
 		username:        username,
 		onlineChannel:   onlineChannel,
 		mu:              sync.Mutex{},
 	}
-	err = director.cleanupFiles()
+	err := director.cleanupFiles()
 	if err != nil {
 		return nil, err
 	}
@@ -268,14 +268,14 @@ func (d *Director) readStreamManagers() iter.Seq2[*stream.Manager, error] {
 	}
 }
 
-func (d *Director) readStreamInfos() iter.Seq2[stream.Info, error] {
-	return func(yield func(stream.Info, error) bool) {
+func (d *Director) readStreamInfos() iter.Seq2[stream.Details, error] {
+	return func(yield func(stream.Details, error) bool) {
 		for manager, err := range d.readStreamManagers() {
 			if err != nil {
-				yield(stream.Info{}, err)
+				yield(stream.Details{}, err)
 				return
 			}
-			streamInfo, err := manager.StreamInfo()
+			streamInfo, err := manager.GetDetails()
 			if err != nil {
 				logging.Warn("failed to get stream info from manager", "stream", streamInfo.Title, "error", err)
 				continue
@@ -287,8 +287,8 @@ func (d *Director) readStreamInfos() iter.Seq2[stream.Info, error] {
 	}
 }
 
-func (d *Director) getStreamsSortedByStartTime() ([]stream.Info, error) {
-	var streams []stream.Info
+func (d *Director) getStreamsSortedByStartTime() ([]stream.Details, error) {
+	var streams []stream.Details
 	for streamInfo, err := range d.readStreamInfos() {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read stream infos: %w", err)
@@ -296,7 +296,7 @@ func (d *Director) getStreamsSortedByStartTime() ([]stream.Info, error) {
 		streams = append(streams, streamInfo)
 	}
 
-	slices.SortStableFunc(streams, func(a, b stream.Info) int {
+	slices.SortStableFunc(streams, func(a, b stream.Details) int {
 		return a.StartedAt.Compare(b.StartedAt)
 	})
 
@@ -316,7 +316,7 @@ func (d *Director) getStreamFilesDirectory(streamID string) (string, error) {
 	return filesDirectory, nil
 }
 
-func (d *Director) getStreamCommon(streamID string) (*stream.Manager, *stream.Info, error) {
+func (d *Director) getStreamCommon(streamID string) (*stream.Manager, *stream.Details, error) {
 	streamManager, err := d.getManager(streamID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get stream manager: %w", err)
@@ -325,7 +325,7 @@ func (d *Director) getStreamCommon(streamID string) (*stream.Manager, *stream.In
 		return nil, nil, nil
 	}
 
-	streamInfo, err := streamManager.StreamInfo()
+	streamInfo, err := streamManager.GetDetails()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get stream info: %w", err)
 	}
@@ -350,27 +350,27 @@ func (d *Director) GetLiveStreamFilesDirectory() (string, error) {
 	return d.getStreamFilesDirectory(d.liveRecordingSession.StreamID())
 }
 
-func (d *Director) GetStreams() ([]stream.Info, error) {
+func (d *Director) GetStreams() ([]stream.Details, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.getStreamsSortedByStartTime()
 }
 
-func (d *Director) GetStream(ctx context.Context, streamID string) (stream.Info, io.ReadCloser, error) {
+func (d *Director) GetStream(ctx context.Context, streamID string) (stream.Details, io.ReadCloser, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	streamManager, streamInfo, err := d.getStreamCommon(streamID)
 	if err != nil {
-		return stream.Info{}, nil, fmt.Errorf("failed to get stream: %w", err)
+		return stream.Details{}, nil, fmt.Errorf("failed to get stream: %w", err)
 	}
 	if streamManager == nil || streamInfo == nil {
-		return stream.Info{}, nil, nil
+		return stream.Details{}, nil, nil
 	}
 
 	reader, err := streamManager.Reader(ctx)
 	if err != nil {
-		return stream.Info{}, nil, fmt.Errorf("failed to get stream reader: %w", err)
+		return stream.Details{}, nil, fmt.Errorf("failed to get stream reader: %w", err)
 	}
 	return *streamInfo, reader, nil
 }
@@ -393,10 +393,10 @@ func (d *Director) GetClip(ctx context.Context, streamID string, startTime, endT
 	}
 
 	clipInfo := stream.ClipInfo{
-		Stream:    *streamInfo,
-		StartTime: startTime,
-		EndTime:   endTime,
-		Duration:  endTime - startTime,
+		StreamDetails: *streamInfo,
+		StartTime:     startTime,
+		EndTime:       endTime,
+		Duration:      endTime - startTime,
 	}
 	return clipInfo, reader, nil
 }

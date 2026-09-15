@@ -4,38 +4,25 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/clip"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/download"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/list"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/live"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/video"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/ui"
-	"github.com/matthiasharzer/livebuffer/twitch"
-	"github.com/matthiasharzer/livebuffer/util/funcutils"
+	"github.com/matthiasharzer/livebuffer/connectorneedrename"
 	"github.com/matthiasharzer/livebuffer/util/httputil"
 )
 
-type userContext struct {
-	username     string
-	twitchClient *twitch.Client
-	director     *buffer.Director
-}
-
-func (u *userContext) Close() error {
-	err := funcutils.CloseAll(u.twitchClient.Close, u.director.Close)
-	return err
-}
-
-func GetMux(userContexts []userContext, eventSubHandler http.Handler) *http.ServeMux {
+func GetMux(director *connectorneedrename.Director, usernames []string, eventSubHandler http.Handler) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	for _, context := range userContexts {
-		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/list", context.username), list.Handler(context.director))
-		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/download", context.username), download.Handler(context.director))
-		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/clip", context.username), clip.Handler(context.director))
-		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/live/", context.username), live.Handler(context.director))
-		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/video/{streamID}/", context.username), video.Handler(context.director))
+	for _, username := range usernames {
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/list", username), list.Handler(director, username))
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/download", username), download.Handler(director))
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/clip", username), clip.Handler(director))
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/live/", username), live.Handler(director, username))
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/video/{streamID}/", username), video.Handler(director))
 	}
 
 	mux.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) {

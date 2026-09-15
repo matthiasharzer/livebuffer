@@ -5,20 +5,24 @@ import (
 	"net/http"
 
 	"github.com/dustin/go-humanize"
-	"github.com/matthiasharzer/livebuffer/buffer"
+	"github.com/matthiasharzer/livebuffer/connectorneedrename"
+	"github.com/matthiasharzer/livebuffer/logging"
 )
 
-func Handler(director *buffer.Director) http.HandlerFunc {
+func Handler(director *connectorneedrename.Director, username string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		streams, err := director.GetStreams()
+		allStreams, err := director.Repository.GetStreamsByBroadcaster(username)
 		if err != nil {
+			logging.Error("failed to retrieve streams", "error", err)
 			http.Error(w, "failed to retrieve streams", http.StatusInternalServerError)
 			return
 		}
 
+		getStreamState := director.GetStreamStateFunc()
+
 		w.Header().Set("Content-Type", "application/json")
-		responseStreams := make([]ResponseStream, 0, len(streams))
-		for _, stream := range streams {
+		responseStreams := make([]ResponseStream, 0, len(allStreams))
+		for _, stream := range allStreams {
 			responseStreams = append(responseStreams, ResponseStream{
 				ID:                   stream.ID,
 				Title:                stream.Title,
@@ -28,7 +32,7 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 				DurationMilliseconds: stream.Duration.Milliseconds(),
 				StartedAt:            stream.StartedAt,
 				BroadcasterUserName:  stream.BroadcasterUserName,
-				StreamState:          string(stream.StreamState),
+				StreamState:          string(getStreamState(stream.ID)),
 			})
 		}
 		response := Response{
@@ -36,6 +40,7 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 		}
 		err = json.NewEncoder(w).Encode(response)
 		if err != nil {
+			logging.Error("failed to encode response", "error", err)
 			http.Error(w, "failed to encode response", http.StatusInternalServerError)
 			return
 		}
