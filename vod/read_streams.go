@@ -1,4 +1,4 @@
-package streams
+package vod
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"slices"
 
 	"github.com/matthiasharzer/livebuffer/buffer/stream"
-	"github.com/matthiasharzer/livebuffer/streams/filter"
+	"github.com/matthiasharzer/livebuffer/vod/filter"
 )
 
 type streamCommon struct {
@@ -15,8 +15,8 @@ type streamCommon struct {
 	details stream.Details
 }
 
-func (d *Director) readStream(streamID string) (*stream.Manager, error) {
-	streamDirectory := d.streamDirectory(streamID)
+func (r *Repository) readStream(streamID string) (*stream.Manager, error) {
+	streamDirectory := r.StreamDirectory(streamID)
 	_, err := os.Stat(streamDirectory)
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -24,9 +24,11 @@ func (d *Director) readStream(streamID string) (*stream.Manager, error) {
 		return nil, err
 	}
 
-	streamState := d.getLiveStateFunc(streamID)
+	if !stream.IsStreamDirectory(streamDirectory) {
+		return nil, nil
+	}
 
-	manager, err := stream.NewManager(streamDirectory, streamState)
+	manager, err := stream.NewManager(streamDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stream manager: %w", err)
 	}
@@ -44,9 +46,9 @@ func (d *Director) readStream(streamID string) (*stream.Manager, error) {
 //	return &meta, err
 //}
 
-func (d *Director) readAllStreams() iter.Seq2[stream.Manager, error] {
+func (r *Repository) readAllStreams() iter.Seq2[stream.Manager, error] {
 	return func(yield func(stream.Manager, error) bool) {
-		dirEntries, err := os.ReadDir(d.bufferDirectory)
+		dirEntries, err := os.ReadDir(r.bufferDirectory)
 		if err != nil {
 			yield(stream.Manager{}, fmt.Errorf("failed to list streams: %w", err))
 			return
@@ -58,10 +60,13 @@ func (d *Director) readAllStreams() iter.Seq2[stream.Manager, error] {
 			}
 			streamID := entry.Name()
 
-			manager, err := d.readStream(streamID)
+			manager, err := r.readStream(streamID)
 			if err != nil {
 				yield(stream.Manager{}, fmt.Errorf("failed to read stream metadata: %w", err))
 				return
+			}
+			if manager == nil {
+				continue
 			}
 
 			if !yield(*manager, nil) {
@@ -71,19 +76,13 @@ func (d *Director) readAllStreams() iter.Seq2[stream.Manager, error] {
 	}
 }
 
-func (d *Director) readStreams(filterFunc filter.Func) iter.Seq2[stream.Manager, error] {
-	return filter.Apply(d.readAllStreams(), filterFunc)
+func (r *Repository) readStreams(filterFunc filter.Func) iter.Seq2[stream.Manager, error] {
+	return filter.Apply(r.readAllStreams(), filterFunc)
 }
 
-func (d *Director) expandMeta(meta stream.Metadata) (stream.Details, error) {
-	directory := d.streamDirectory(meta.ID)
-	state := d.getLiveStateFunc(meta.ID)
-	return stream.NewInfo(meta, directory, state)
-}
-
-func (d *Director) getStreamsSortedByStartTime(filterFunc filter.Func) ([]stream.Manager, error) {
+func (r *Repository) getStreamsSortedByStartTime(filterFunc filter.Func) ([]stream.Manager, error) {
 	var streams []stream.Manager
-	for streamInfo, err := range d.readStreams(filterFunc) {
+	for streamInfo, err := range r.readStreams(filterFunc) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read stream infos: %w", err)
 		}
@@ -97,8 +96,8 @@ func (d *Director) getStreamsSortedByStartTime(filterFunc filter.Func) ([]stream
 	return streams, nil
 }
 
-func (d *Director) getStreamCommon(streamID string) (*streamCommon, error) {
-	manager, err := d.readStream(streamID)
+func (r *Repository) getStreamCommon(streamID string) (*streamCommon, error) {
+	manager, err := r.readStream(streamID)
 	if err != nil {
 		return nil, err
 	}
@@ -115,8 +114,8 @@ func (d *Director) getStreamCommon(streamID string) (*streamCommon, error) {
 	}, nil
 }
 
-func (d *Director) getStreamDetails(filterFunc filter.Func) ([]stream.Details, error) {
-	managers, err := d.getStreamsSortedByStartTime(filterFunc)
+func (r *Repository) getStreamDetails(filterFunc filter.Func) ([]stream.Details, error) {
+	managers, err := r.getStreamsSortedByStartTime(filterFunc)
 	if err != nil {
 		return nil, fmt.Errorf("failed reading streams: %w", err)
 	}
@@ -132,6 +131,6 @@ func (d *Director) getStreamDetails(filterFunc filter.Func) ([]stream.Details, e
 	return allDetails, nil
 }
 
-func (d *Director) getAllStreamDetails() ([]stream.Details, error) {
-	return d.getStreamDetails(nil)
+func (r *Repository) getAllStreamDetails() ([]stream.Details, error) {
+	return r.getStreamDetails(nil)
 }

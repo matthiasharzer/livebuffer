@@ -4,18 +4,18 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/matthiasharzer/livebuffer/buffer"
+	"github.com/matthiasharzer/livebuffer/connectorneedrename"
 	"github.com/matthiasharzer/livebuffer/hls"
 	"github.com/matthiasharzer/livebuffer/logging"
 )
 
-func Handler(director *buffer.Director) http.HandlerFunc {
+func Handler(director *connectorneedrename.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		streamID := r.PathValue("streamID")
 		cleanPath := filepath.Clean(r.URL.Path)
 		filename := filepath.Base(cleanPath)
 
-		filesDirectory, err := director.GetStreamFilesDirectory(streamID)
+		filesDirectory, err := director.Repository.GetStreamFilesDirectory(streamID)
 		if err != nil {
 			logging.Error("failed to retrieve stream files directory", "error", err)
 			http.Error(w, "failed to retrieve stream files", http.StatusInternalServerError)
