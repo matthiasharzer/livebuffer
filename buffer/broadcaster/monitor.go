@@ -83,7 +83,7 @@ func (m *Monitor) startRecording(event stream.WentLiveEvent) bool {
 	}
 
 	streamBufferDir := m.streamDirectory(event.StreamID)
-	err := os.MkdirAll(streamBufferDir, 0777)
+	err := os.MkdirAll(streamBufferDir, 0755)
 	if err != nil {
 		logging.Error("failed to create stream buffer directory", "error", err)
 		return false

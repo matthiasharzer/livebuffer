@@ -1,7 +1,6 @@
 package buffer
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/matthiasharzer/livebuffer/buffer/broadcaster"
@@ -33,11 +32,7 @@ func NewDirector(repository *vod.Repository, broadcasterMonitors []*broadcaster.
 		unsubscriber:                 nil,
 		mu:                           sync.RWMutex{},
 	}
-	err := director.cleanup()
-	if err != nil {
-		_ = director.Close()
-		return nil, fmt.Errorf("failed to cleanup buffer directory initially: %w", err)
-	}
+	director.cleanup()
 
 	for _, monitor := range broadcasterMonitors {
 		director.monitorByBroadcasterUserName[monitor.BroadcasterUserName()] = monitor

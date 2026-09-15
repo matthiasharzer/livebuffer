@@ -97,7 +97,7 @@ func (r *Repository) ReadStreams(filterFunc filter.Func) iter.Seq2[stream.Manage
 }
 
 // GetStreamsSortedByStartTimeBestEffort retrieves all streams on disk by best effort, ignoring errors and including
-// non-error read streams only
+// non-error read streams only.
 func (r *Repository) GetStreamsSortedByStartTimeBestEffort(filterFunc filter.Func) []stream.Manager {
 	var streams []stream.Manager
 	for streamInfo, err := range r.ReadStreams(filterFunc) {
@@ -113,6 +113,21 @@ func (r *Repository) GetStreamsSortedByStartTimeBestEffort(filterFunc filter.Fun
 	})
 
 	return streams
+}
+
+// ReadAllBufferEntryPaths reads all directory entries and returns the path to the entry, even when it does not
+// is a valid stream directory
+func (r *Repository) ReadAllBufferEntryPaths() ([]string, error) {
+	dirEntries, err := os.ReadDir(r.bufferDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stats directory: %w", err)
+	}
+
+	var paths []string
+	for _, entry := range dirEntries {
+		paths = append(paths, r.StreamDirectory(entry.Name()))
+	}
+	return paths, nil
 }
 
 func (r *Repository) Close() error {

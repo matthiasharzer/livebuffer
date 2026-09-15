@@ -11,14 +11,15 @@ import (
 	"github.com/matthiasharzer/livebuffer/util/iterutil"
 )
 
-func (d *Director) cleanup() error {
+func (d *Director) cleanup() {
 	for username := range d.monitorByBroadcasterUserName {
 		err := d.cleanupUser(username)
 		if err != nil {
-			return err
+			logging.Warn("failed to cleanup user", "username", username, "error", err)
 		}
 	}
-	return nil
+	d.cleanupUnknownDirectory()
+	return
 }
 
 func (d *Director) cleanupUser(username string) error {
@@ -58,4 +59,36 @@ func (d *Director) cleanupUser(username string) error {
 		logging.Info("deleted buffered stream", "stream", streamManager.StreamID(), "directory", streamManager.StreamDirectory)
 	}
 	return nil
+}
+
+func (d *Director) cleanupUnknownDirectory() {
+	knownStreams := make(map[string]bool)
+
+	streams := d.repository.ReadAllStreams()
+	for streamManager, err := range streams {
+		if err != nil {
+			logging.Error("encountered critical stream reading error while cleaning up", "error", err)
+			return
+		}
+		knownStreams[streamManager.StreamDirectory] = true
+	}
+
+	allPaths, err := d.repository.ReadAllBufferEntryPaths()
+	if err != nil {
+		logging.Error("failed to read buffer entries", "error", err)
+		return
+	}
+
+	for _, path := range allPaths {
+		_, known := knownStreams[path]
+		if known {
+			continue
+		}
+		err := os.RemoveAll(path)
+		if err != nil {
+			logging.Warn("failed to remove unknown file or directory", "path", path, "error", err)
+			continue
+		}
+		logging.Info("removed unknown file or directory", "path", path)
+	}
 }
