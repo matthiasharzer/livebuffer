@@ -1,10 +1,13 @@
 package buffer
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/matthiasharzer/livebuffer/buffer/broadcaster"
 	"github.com/matthiasharzer/livebuffer/buffer/vod"
+	"github.com/matthiasharzer/livebuffer/logging"
+	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/stream"
 )
 
@@ -16,22 +19,51 @@ const (
 )
 
 type Director struct {
-	Repository          *vod.Repository
-	broadcasterMonitors map[string]*broadcaster.Monitor
+	repository                   *vod.Repository
+	monitorByBroadcasterUserName map[string]*broadcaster.Monitor
+	unsubscriber                 []observer.UnsubscribeFunc
 
 	mu sync.RWMutex
 }
 
-func NewDirector(repository *vod.Repository, broadcasterMonitors map[string]*broadcaster.Monitor) *Director {
-	return &Director{
-		Repository:          repository,
-		broadcasterMonitors: broadcasterMonitors,
-		mu:                  sync.RWMutex{},
+func NewDirector(repository *vod.Repository, broadcasterMonitors []*broadcaster.Monitor) (*Director, error) {
+	director := &Director{
+		repository:                   repository,
+		monitorByBroadcasterUserName: make(map[string]*broadcaster.Monitor),
+		unsubscriber:                 nil,
+		mu:                           sync.RWMutex{},
+	}
+
+	for _, monitor := range broadcasterMonitors {
+		director.monitorByBroadcasterUserName[monitor.BroadcasterUserName()] = monitor
+
+		unsubscribe := monitor.RecordingStateChannel().Subscribe(func(state broadcaster.RecordingState) {
+			director.onRecordingStateChange(monitor.BroadcasterUserName(), state)
+		})
+		director.unsubscriber = append(director.unsubscriber, unsubscribe)
+	}
+
+	err := director.cleanup()
+	if err != nil {
+		return nil, fmt.Errorf("failed to cleanup buffer directory initially: %w", err)
+	}
+
+	return director, nil
+}
+
+func (d *Director) onRecordingStateChange(username string, state broadcaster.RecordingState) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	// we cleanup on all recording state updates, just to be sure, even though recording running should be enough
+	err := d.cleanupUser(username)
+	if err != nil {
+		logging.Warn("failed to cleanup streams", "error", err, "username", username, "recording_state", state)
 	}
 }
 
 func (d *Director) getStreamState(streamID string) stream.State {
-	for _, monitor := range d.broadcasterMonitors {
+	for _, monitor := range d.monitorByBroadcasterUserName {
 		if monitor.GetLiveStreamID() == streamID && monitor.IsLive() {
 			return stream.StateLive
 		}
@@ -45,7 +77,7 @@ func (d *Director) GetStreamStateFunc() func(streamID string) StreamState {
 
 	// pre calculate for performance reasons
 	liveStreams := make(map[string]bool)
-	for _, monitor := range d.broadcasterMonitors {
+	for _, monitor := range d.monitorByBroadcasterUserName {
 		streamID := monitor.GetLiveStreamID()
 		if streamID == "" {
 			continue
@@ -66,28 +98,33 @@ func (d *Director) GetLiveStreamFilesDirectory(username string) (string, error) 
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	liveMonitor, ok := d.broadcasterMonitors[username]
+	liveMonitor, ok := d.monitorByBroadcasterUserName[username]
 	if !ok {
 		return "", nil
 	}
 	if !liveMonitor.IsLive() {
 		return "", nil
 	}
-	return d.Repository.StreamFilesDirectory(liveMonitor.GetLiveStreamID()), nil
+	return d.repository.StreamFilesDirectory(liveMonitor.GetLiveStreamID()), nil
 }
 
 func (d *Director) GetStreamFilesDirectory(streamID string) (string, error) {
-	return d.Repository.StreamFilesDirectory(streamID), nil
+	return d.repository.StreamFilesDirectory(streamID), nil
 }
 
 func (d *Director) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	repositoryErr := d.Repository.Close()
+	for _, unsubscribe := range d.unsubscriber {
+		unsubscribe()
+	}
+	d.unsubscriber = nil
+
+	repositoryErr := d.repository.Close()
 
 	var firstMonitorErr error
-	for _, monitor := range d.broadcasterMonitors {
+	for _, monitor := range d.monitorByBroadcasterUserName {
 		err := monitor.Close()
 		if err != nil && firstMonitorErr == nil {
 			firstMonitorErr = err

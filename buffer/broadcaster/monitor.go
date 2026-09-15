@@ -13,6 +13,13 @@ import (
 	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
 )
 
+type RecordingState string
+
+const (
+	RecordingStateStopped   RecordingState = "stopped"
+	RecordingStateRecording RecordingState = "recording"
+)
+
 type StreamDirectoryFunc = func(streamID string) string
 
 type Monitor struct {
@@ -21,9 +28,10 @@ type Monitor struct {
 	onlineChannel            observer.ReadonlyChannel[twitch.StreamOnlineState]
 	unsubscribeOnlineChannel observer.UnsubscribeFunc
 	liveRecordingSession     *stream.RecordingSession
+	recordingStateChannel    observer.ReadWriteChannel[RecordingState]
 	streamDirectory          StreamDirectoryFunc
 
-	mu sync.Mutex
+	mu sync.RWMutex
 }
 
 func NewMonitor(maxStreams int, username string, onlineChannel observer.ReadonlyChannel[twitch.StreamOnlineState], streamDirectory StreamDirectoryFunc) (*Monitor, error) {
@@ -35,25 +43,14 @@ func NewMonitor(maxStreams int, username string, onlineChannel observer.Readonly
 		return nil, errors.New("ffmpeg is required. Please install ffmpeg to use the monitor")
 	}
 
-	//bufferDir := filepath.Join(bufferBaseDirectory, username)
-	//err := os.MkdirAll(bufferDir, 0777)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to create buffer directory: %w", err)
-	//}
-
 	monitor := &Monitor{
-		maxStreams:          maxStreams,
-		broadcasterUserName: username,
-		onlineChannel:       onlineChannel,
-		streamDirectory:     streamDirectory,
-		mu:                  sync.Mutex{},
+		maxStreams:            maxStreams,
+		broadcasterUserName:   username,
+		onlineChannel:         onlineChannel,
+		streamDirectory:       streamDirectory,
+		recordingStateChannel: observer.NewChannel[RecordingState](),
+		mu:                    sync.RWMutex{},
 	}
-	// TODO: Cleanup
-	//err := monitor.cleanupFiles()
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	monitor.subscribeToOnlineChannel()
 	return monitor, nil
 }
@@ -105,17 +102,14 @@ func (m *Monitor) wentLive(event stream.WentLiveEvent) {
 		logging.Error("failed to create recording stream manager", "error", err)
 		return
 	}
+	m.recordingStateChannel.Publish(RecordingStateRecording)
 	m.liveRecordingSession = recordingSession
 	logging.Info("started recording session", "username", event.BroadcasterUserName, "stream_id", event.StreamID)
-
-	//err = m.cleanupFiles()
-	//if err != nil {
-	//	logging.Warn("failed to cleanup files", "error", err)
-	//}
 }
 
 func (m *Monitor) stopRecording() error {
 	logging.Info("stopping recording session", "username", m.broadcasterUserName)
+	m.recordingStateChannel.Publish(RecordingStateStopped)
 	if m.liveRecordingSession != nil {
 		err := m.liveRecordingSession.Close()
 		if err != nil {
@@ -124,22 +118,37 @@ func (m *Monitor) stopRecording() error {
 		m.liveRecordingSession = nil
 	}
 	return nil
-	//return m.cleanupFiles()
+}
+
+func (m *Monitor) RecordingStateChannel() observer.ReadonlyChannel[RecordingState] {
+	return m.recordingStateChannel
 }
 
 func (m *Monitor) IsLive() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.liveRecordingSession != nil
 }
 
 func (m *Monitor) GetLiveStreamID() string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.liveRecordingSession == nil {
 		return ""
 	}
 	return m.liveRecordingSession.StreamID()
+}
+
+func (m *Monitor) BroadcasterUserName() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.broadcasterUserName
+}
+
+func (m *Monitor) MaxStreams() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.maxStreams
 }
 
 func (m *Monitor) Close() error {

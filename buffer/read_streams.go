@@ -16,7 +16,7 @@ type streamCommon struct {
 }
 
 func (d *Director) getStreamCommon(streamID string) (*streamCommon, error) {
-	manager, err := d.Repository.ReadStream(streamID)
+	manager, err := d.repository.ReadStream(streamID)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (d *Director) getStreamCommon(streamID string) (*streamCommon, error) {
 }
 
 func (d *Director) getStreamDetails(filterFunc filter.Func) ([]stream.Details, error) {
-	managers, err := d.Repository.GetStreamsSortedByStartTime(filterFunc)
+	managers, err := d.repository.GetStreamsSortedByStartTime(filterFunc)
 	if err != nil {
 		return nil, fmt.Errorf("failed reading streams: %w", err)
 	}
