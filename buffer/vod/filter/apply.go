@@ -3,7 +3,7 @@ package filter
 import (
 	"iter"
 
-	"github.com/matthiasharzer/livebuffer/buffer/stream"
+	"github.com/matthiasharzer/livebuffer/stream"
 )
 
 func Apply(items iter.Seq2[stream.Manager, error], filterFunc Func) iter.Seq2[stream.Manager, error] {

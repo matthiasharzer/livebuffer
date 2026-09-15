@@ -6,8 +6,8 @@ import (
 	"os"
 	"slices"
 
-	"github.com/matthiasharzer/livebuffer/buffer/stream"
-	"github.com/matthiasharzer/livebuffer/vod/filter"
+	"github.com/matthiasharzer/livebuffer/buffer/vod/filter"
+	"github.com/matthiasharzer/livebuffer/stream"
 )
 
 type streamCommon struct {
@@ -34,17 +34,6 @@ func (r *Repository) readStream(streamID string) (*stream.Manager, error) {
 	}
 	return manager, nil
 }
-
-//func (d *Director) readMeta(streamID string) (*stream.Metadata, error) {
-//	streamDirectory := d.streamDirectory(streamID)
-//	meta, err := stream.ReadMetadata(streamDirectory)
-//	if os.IsNotExist(err) {
-//		return nil, nil
-//	} else if err != nil {
-//		return nil, err
-//	}
-//	return &meta, err
-//}
 
 func (r *Repository) readAllStreams() iter.Seq2[stream.Manager, error] {
 	return func(yield func(stream.Manager, error) bool) {

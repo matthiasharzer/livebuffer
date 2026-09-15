@@ -8,14 +8,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/matthiasharzer/livebuffer/broadcaster"
-	"github.com/matthiasharzer/livebuffer/connectorneedrename"
+	"github.com/matthiasharzer/livebuffer/buffer"
+	"github.com/matthiasharzer/livebuffer/buffer/broadcaster"
+	"github.com/matthiasharzer/livebuffer/buffer/vod"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/twitch/eventsub"
 	"github.com/matthiasharzer/livebuffer/util/fsutil"
 	"github.com/matthiasharzer/livebuffer/util/stringutil"
-	"github.com/matthiasharzer/livebuffer/vod"
 	"github.com/nicklaw5/helix/v2"
 	"github.com/spf13/cobra"
 )
@@ -162,7 +162,7 @@ func getUserContexts(helixClient *helix.Client, eventSubClient *eventsub.Client,
 	return userContexts, nil
 }
 
-func getDirector(users []userContext, bufferDirectory string) (*connectorneedrename.Director, error) {
+func getDirector(users []userContext, bufferDirectory string) (*buffer.Director, error) {
 	repository := vod.NewRepository(bufferDirectory)
 
 	monitors := make(map[string]*broadcaster.Monitor)
@@ -175,7 +175,7 @@ func getDirector(users []userContext, bufferDirectory string) (*connectorneedren
 		monitors[context.username] = monitor
 	}
 
-	directory := connectorneedrename.NewDirector(repository, monitors)
+	directory := buffer.NewDirector(repository, monitors)
 	return directory, nil
 }
 

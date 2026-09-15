@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/matthiasharzer/livebuffer/buffer/stream"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
+	stream2 "github.com/matthiasharzer/livebuffer/stream"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
 )
@@ -20,7 +20,7 @@ type Monitor struct {
 	broadcasterUserName      string
 	onlineChannel            observer.ReadonlyChannel[twitch.StreamOnlineState]
 	unsubscribeOnlineChannel observer.UnsubscribeFunc
-	liveRecordingSession     *stream.RecordingSession
+	liveRecordingSession     *stream2.RecordingSession
 	streamDirectory          StreamDirectoryFunc
 
 	mu sync.Mutex
@@ -104,7 +104,7 @@ func (m *Monitor) onlineStateChanged(state twitch.StreamOnlineState) {
 		if state.StartedAt != nil {
 			startedAt = *state.StartedAt
 		}
-		m.wentLive(stream.WentLiveEvent{
+		m.wentLive(stream2.WentLiveEvent{
 			StreamID:            state.StreamID,
 			Title:               state.Title,
 			BroadcasterUserName: state.BroadcasterUserName,
@@ -118,7 +118,7 @@ func (m *Monitor) onlineStateChanged(state twitch.StreamOnlineState) {
 	}
 }
 
-func (m *Monitor) wentLive(event stream.WentLiveEvent) {
+func (m *Monitor) wentLive(event stream2.WentLiveEvent) {
 	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName)
 
 	if m.liveRecordingSession != nil {
@@ -133,7 +133,7 @@ func (m *Monitor) wentLive(event stream.WentLiveEvent) {
 		return
 	}
 
-	recordingSession, err := stream.StartRecording(event, streamBufferDir)
+	recordingSession, err := stream2.StartRecording(event, streamBufferDir)
 	if err != nil {
 		logging.Error("failed to create recording stream manager", "error", err)
 		return

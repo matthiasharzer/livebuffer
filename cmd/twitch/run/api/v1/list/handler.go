@@ -5,11 +5,11 @@ import (
 	"net/http"
 
 	"github.com/dustin/go-humanize"
-	"github.com/matthiasharzer/livebuffer/connectorneedrename"
+	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/logging"
 )
 
-func Handler(director *connectorneedrename.Director, username string) http.HandlerFunc {
+func Handler(director *buffer.Director, username string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		allStreams, err := director.Repository.GetStreamsByBroadcaster(username)
 		if err != nil {
