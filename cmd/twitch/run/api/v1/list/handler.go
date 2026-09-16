@@ -18,8 +18,6 @@ func Handler(director *buffer.Director, username string) http.HandlerFunc {
 			return
 		}
 
-		getStreamState := director.GetStreamStateFunc()
-
 		w.Header().Set("Content-Type", "application/json")
 		responseStreams := make([]ResponseStream, 0, len(allStreams))
 		for _, stream := range allStreams {
@@ -32,7 +30,7 @@ func Handler(director *buffer.Director, username string) http.HandlerFunc {
 				DurationMilliseconds: stream.Duration.Milliseconds(),
 				StartedAt:            stream.StartedAt,
 				BroadcasterUserName:  stream.BroadcasterUserName,
-				StreamState:          string(getStreamState(stream.ID)),
+				StreamState:          string(stream.StreamState),
 			})
 		}
 		response := Response{
