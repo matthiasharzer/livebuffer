@@ -10,13 +10,6 @@ import (
 	"github.com/matthiasharzer/livebuffer/stream"
 )
 
-type StreamState string
-
-const (
-	StreamStateLive     StreamState = "live"
-	StreamStateArchived StreamState = "archived"
-)
-
 type Director struct {
 	repository                   *vod.Repository
 	monitorByBroadcasterUserName map[string]*broadcaster.Monitor
@@ -64,29 +57,6 @@ func (d *Director) getStreamState(streamID string) stream.State {
 		}
 	}
 	return stream.StateArchived
-}
-
-func (d *Director) GetStreamStateFunc() func(streamID string) StreamState {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	// pre calculate for performance reasons
-	liveStreams := make(map[string]bool)
-	for _, monitor := range d.monitorByBroadcasterUserName {
-		streamID := monitor.GetLiveStreamID()
-		if streamID == "" {
-			continue
-		}
-		liveStreams[streamID] = true
-	}
-
-	return func(streamID string) StreamState {
-		_, ok := liveStreams[streamID]
-		if ok {
-			return StreamStateLive
-		}
-		return StreamStateArchived
-	}
 }
 
 func (d *Director) GetLiveStreamFilesDirectory(username string) (string, error) {

@@ -172,6 +172,7 @@ func (m *Monitor) Close() error {
 		m.unsubscribeOnlineChannel()
 		m.unsubscribeOnlineChannel = nil
 	}
+	m.recordingStateChannel.Clear()
 	m.stopRecording()
 	return nil
 }

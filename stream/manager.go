@@ -55,10 +55,6 @@ func (m *Manager) StreamID() string {
 	return m.meta.ID
 }
 
-func (m *Manager) StreamFilePath() (string, error) {
-	return "", nil
-}
-
 func (m *Manager) Reader(ctx context.Context) (io.ReadCloser, error) {
 	reader, err := hls.NewReader(ctx, m.StreamFilesDirectory())
 	if err != nil {
