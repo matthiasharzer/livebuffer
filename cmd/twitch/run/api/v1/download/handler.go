@@ -6,6 +6,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/logging"
+	"github.com/matthiasharzer/livebuffer/stream"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 	"github.com/matthiasharzer/livebuffer/util/ioutil"
 )
@@ -17,8 +18,12 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			http.Error(w, "missing 'stream_id' query parameter", http.StatusBadRequest)
 			return
 		}
+		if !stream.IsStreamID(streamID) {
+			http.Error(w, "invalid stream_id", http.StatusBadRequest)
+			return
+		}
 
-		streamInfo, streamReader, err := directory.GetStream(r.Context(), streamID)
+		streamInfo, streamReader, err := directory.GetStreamReader(r.Context(), streamID)
 		if err != nil {
 			logging.Error("failed to retrieve stream", "error", err)
 			http.Error(w, "failed to retrieve stream", http.StatusInternalServerError)
