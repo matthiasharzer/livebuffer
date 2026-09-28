@@ -14,7 +14,7 @@ func ByBroadcasterName(name string) Func {
 	}
 }
 
-func None() Func {
+func All() Func {
 	return func(manager stream.Manager) bool {
 		return true
 	}
