@@ -1,8 +1,11 @@
 package stream
 
 import (
+	"regexp"
 	"time"
 )
+
+var streamIDRegex = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
 
 type State string
 
@@ -11,7 +14,7 @@ const (
 	StateLive     State = "live"
 )
 
-type Info struct {
+type Details struct {
 	ID                  string
 	Title               string
 	BroadcasterUserName string
@@ -23,8 +26,12 @@ type Info struct {
 }
 
 type ClipInfo struct {
-	Stream    Info
-	StartTime time.Duration
-	EndTime   time.Duration
-	Duration  time.Duration
+	StreamDetails Details
+	StartTime     time.Duration
+	EndTime       time.Duration
+	Duration      time.Duration
+}
+
+func IsStreamID(streamID string) bool {
+	return streamIDRegex.MatchString(streamID)
 }

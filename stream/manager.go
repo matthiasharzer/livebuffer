@@ -10,50 +10,49 @@ import (
 )
 
 type Manager struct {
-	state           State
+	StreamDirectory string
 	meta            Metadata
-	streamDirectory string
 }
 
-func NewManager(streamDirectory string, state State) (*Manager, error) {
+func NewManager(streamDirectory string) (*Manager, error) {
 	metadata, err := ReadMetadata(streamDirectory)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Manager{
-		state:           state,
 		meta:            metadata,
-		streamDirectory: streamDirectory,
+		StreamDirectory: streamDirectory,
 	}, nil
 }
 
 func (m *Manager) StreamFilesDirectory() string {
-	return FilesDirectory(m.streamDirectory)
+	return FilesDirectory(m.StreamDirectory)
 }
 
-func (m *Manager) StreamInfo() (Info, error) {
-	hlsInfo, err := hls.Stat(FilesDirectory(m.streamDirectory))
+func (m *Manager) Meta() Metadata {
+	return m.meta
+}
+
+func (m *Manager) GetDetails(state State) (Details, error) {
+	hlsInfo, err := hls.Stat(m.StreamFilesDirectory())
 	if err != nil {
-		return Info{}, fmt.Errorf("failed to stat hls directory %s: %w", m.StreamFilesDirectory(), err)
+		return Details{}, fmt.Errorf("failed to stat hls directory %s: %w", m.StreamFilesDirectory(), err)
 	}
 
-	return Info{
+	return Details{
 		ID:                  m.meta.ID,
 		Title:               m.meta.Title,
 		BroadcasterUserName: m.meta.BroadcasterUserName,
 		StartedAt:           m.meta.StartedAt,
 		Duration:            hlsInfo.Duration,
-		StreamState:         m.state,
-		Directory:           m.streamDirectory,
+		Directory:           m.StreamDirectory,
 		Size:                hlsInfo.Size,
+		StreamState:         state,
 	}, nil
 }
 func (m *Manager) StreamID() string {
 	return m.meta.ID
-}
-func (m *Manager) StreamFilePath() (string, error) {
-	return "", nil
 }
 
 func (m *Manager) Reader(ctx context.Context) (io.ReadCloser, error) {

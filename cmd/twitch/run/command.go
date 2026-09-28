@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
+	"github.com/matthiasharzer/livebuffer/buffer/broadcaster"
+	"github.com/matthiasharzer/livebuffer/buffer/vod"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/twitch/eventsub"
@@ -74,29 +76,10 @@ func getHelixClient() (*helix.Client, error) {
 	return helixClient, nil
 }
 
-func getUserContext(helixClient *helix.Client, eventSubClient *eventsub.Client, username string, bufferDirectory string) (userContext, error) {
-	twitchClient, err := twitch.NewClient(helixClient, eventSubClient, username)
-	if err != nil {
-		return userContext{}, fmt.Errorf("failed to create twitch client: %w", err)
-	}
+func getUserTwitchClients(helixClient *helix.Client, eventSubClient *eventsub.Client, usernames []string) ([]*twitch.Client, error) {
+	var clients []*twitch.Client
 
-	director, err := buffer.NewDirector(maxStreams, bufferDirectory, twitchClient.Username(), twitchClient.OnlineChannel())
-	if err != nil {
-		funcutils.LogError(twitchClient.Close, "failed to close twitch client on director initialization error")
-		return userContext{}, fmt.Errorf("failed to create director: %w", err)
-	}
-
-	return userContext{
-		username:     twitchClient.Username(),
-		twitchClient: twitchClient,
-		director:     director,
-	}, nil
-}
-
-func getUserContexts(helixClient *helix.Client, eventSubClient *eventsub.Client, usernames []string, bufferDirectory string) ([]userContext, error) {
-	var userContexts []userContext
 	seen := make(map[string]bool)
-
 	for _, usernameArg := range usernames {
 		username := strings.ToLower(strings.TrimSpace(usernameArg))
 
@@ -107,15 +90,36 @@ func getUserContexts(helixClient *helix.Client, eventSubClient *eventsub.Client,
 		if isDuplicate {
 			return nil, fmt.Errorf("all provided twitch usernames must be unique. Found duplicated username %s", username)
 		}
-		context, err := getUserContext(helixClient, eventSubClient, username, bufferDirectory)
+
+		twitchClient, err := twitch.NewClient(helixClient, eventSubClient, username)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create user context for %s: %w", username, err)
+			return nil, fmt.Errorf("failed to create twitch client: %w", err)
 		}
+
+		clients = append(clients, twitchClient)
+
 		seen[username] = true
-		userContexts = append(userContexts, context)
+	}
+	return clients, nil
+}
+
+func getDirector(twitchClients []*twitch.Client, bufferDirectory string) (*buffer.Director, error) {
+	repository := vod.NewRepository(bufferDirectory)
+
+	var monitors []*broadcaster.Monitor
+	for _, client := range twitchClients {
+		monitor, err := broadcaster.NewMonitor(maxStreams, client.Username(), client.OnlineChannel(), repository.StreamDirectory)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create broadcast monitor: %w", err)
+		}
+		monitors = append(monitors, monitor)
 	}
 
-	return userContexts, nil
+	directory, err := buffer.NewDirector(repository, monitors)
+	if err != nil {
+		return nil, err
+	}
+	return directory, nil
 }
 
 var Command = &cobra.Command{
@@ -178,32 +182,39 @@ var Command = &cobra.Command{
 		}
 		eventSubClient := eventsub.NewClient(helixClient, *eventSubURL, eventSubSecret)
 
-		userContexts, err := getUserContexts(helixClient, eventSubClient, usernames, bufferDirectory)
+		twitchClients, err := getUserTwitchClients(helixClient, eventSubClient, usernames)
 		if err != nil {
 			return err
 		}
 		defer func() {
-			for _, context := range userContexts {
-				err := context.Close()
+			for _, client := range twitchClients {
+				err := client.Close()
 				if err != nil {
-					logging.Warn("failed to close user context for", "username", context.username, "error", err)
+					logging.Warn("failed to close twitch client for", "username", client.Username(), "error", err)
 				}
 			}
 		}()
 
-		for _, context := range userContexts {
+		// create director BEFORE subscribing to twitch, so the director can handle initial twitch events
+		director, err := getDirector(twitchClients, bufferDirectory)
+		if err != nil {
+			return fmt.Errorf("failed to create director: %w", err)
+		}
+		defer funcutils.LogError(director.Close, "failed to close director")
+
+		for _, client := range twitchClients {
 			if devNoEventSub {
 				logging.Info("skipping event sub registration")
-				_ = context.twitchClient.HandleInitialStreamState()
+				_ = client.HandleInitialStreamState()
 				continue
 			}
-			err := context.twitchClient.StartEventSub()
+			err := client.StartEventSub()
 			if err != nil {
-				return fmt.Errorf("failed to start event sub for user %s: %w", context.username, err)
+				return fmt.Errorf("failed to start event sub for user %s: %w", client.Username(), err)
 			}
 		}
 
-		mux := GetMux(userContexts, eventSubClient.HTTPHandler())
+		mux := GetMux(director, usernames, eventSubClient.HTTPHandler())
 
 		addr := fmt.Sprintf("%s:%d", httpHost, httpPort)
 		logging.Info("starting livebuffer server", "host", httpHost, "port", httpPort)

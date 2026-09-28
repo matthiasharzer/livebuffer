@@ -9,6 +9,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/logging"
+	"github.com/matthiasharzer/livebuffer/stream"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 	"github.com/matthiasharzer/livebuffer/util/ioutil"
 )
@@ -20,6 +21,11 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			http.Error(w, "missing 'stream_id' query parameter", http.StatusBadRequest)
 			return
 		}
+		if !stream.IsStreamID(streamID) {
+			http.Error(w, "invalid stream_id", http.StatusBadRequest)
+			return
+		}
+
 		startStr := r.URL.Query().Get("start")
 		endStr := r.URL.Query().Get("end")
 
@@ -47,7 +53,7 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			return
 		}
 
-		clipInfo, clipReader, err := directory.GetClip(r.Context(), streamID, start, end)
+		clipInfo, clipReader, err := directory.GetClipReader(r.Context(), streamID, start, end)
 		if err != nil {
 			logging.Error("failed to retrieve stream", "error", err)
 			http.Error(w, "failed to retrieve stream", http.StatusInternalServerError)
@@ -59,7 +65,7 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 		}
 		defer funcutils.LogError(clipReader.Close, "failed to close stream")
 
-		responseFileName := fmt.Sprintf("%s_%s_%s_to_%s.ts", clipInfo.Stream.BroadcasterUserName, streamID, startStr, endStr)
+		responseFileName := fmt.Sprintf("%s_%s_%s_to_%s.ts", clipInfo.StreamDetails.BroadcasterUserName, streamID, startStr, endStr)
 		w.Header().Set("Content-Type", "video/mp4")
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+responseFileName+"\"")
 
