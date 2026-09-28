@@ -11,6 +11,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/buffer/vod/filter"
+	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/shared"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/stream"
 )
@@ -25,12 +26,18 @@ const (
 
 type OrderFunc = func(a, b stream.Details) int
 
-func getFilter(r *http.Request) filter.Func {
+func getFilter(r *http.Request, w http.ResponseWriter, director *buffer.Director) (filter.Func, error) {
 	username := r.URL.Query().Get("username")
-	if username != "" {
-		return filter.ByBroadcasterName(username)
+	if username == "" {
+		return filter.All(), nil
 	}
-	return filter.All()
+	isKnownUser := director.IsObservedBroadcaster(username)
+	if !isKnownUser {
+		http.Error(w, "unknown broadcaster username", http.StatusBadRequest)
+		return nil, errors.New("unknown broadcaster username")
+	}
+
+	return filter.ByBroadcasterName(username), nil
 }
 
 func getOrder(r *http.Request, w http.ResponseWriter) (StreamOrder, error) {
@@ -71,19 +78,21 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		order, err := getOrder(r, w)
 		if err != nil {
-			logging.Warn("error while resolving order", "error", err)
+			return
+		}
+		filterFunc, err := getFilter(r, w, director)
+		if err != nil {
 			return
 		}
 
 		orderFunc := getOrderFunc(order)
-		filterFunc := getFilter(r)
 		streamsSeq := director.GetStreams(filterFunc)
 		sortedStreams := slices.SortedFunc(streamsSeq, orderFunc)
 
 		w.Header().Set("Content-Type", "application/json")
-		responseStreams := make([]ResponseStream, 0, len(sortedStreams))
+		responseStreams := make([]shared.ResponseStream, 0, len(sortedStreams))
 		for _, s := range sortedStreams {
-			responseStreams = append(responseStreams, ResponseStream{
+			responseStreams = append(responseStreams, shared.ResponseStream{
 				ID:                   s.ID,
 				Title:                s.Title,
 				Size:                 humanize.Bytes(uint64(s.Size)),

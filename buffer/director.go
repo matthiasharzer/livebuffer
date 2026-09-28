@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/matthiasharzer/livebuffer/buffer/broadcaster"
@@ -57,6 +58,19 @@ func (d *Director) getStreamState(streamID string) stream.State {
 		}
 	}
 	return stream.StateArchived
+}
+
+func (d *Director) IsObservedBroadcaster(username string) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	// Iterating over the entire map instead of making a lookup to allow case-insensitive matching
+	for u := range d.monitorByBroadcasterUserName {
+		if strings.EqualFold(u, username) {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *Director) GetLiveStreamFilesDirectory(username string) (string, error) {

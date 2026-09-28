@@ -21,12 +21,12 @@ export class App extends Component {
 
 	private router = new Router(this, [
 		{
-			path: '/:username/live',
+			path: '/live/:username',
 			render: ({ username }) => html`<lb-live-view .username=${username ?? null}></lb-live-view>`,
 		},
 		{
-			path: '/:username/video',
-			render: ({ username }) => html`<lb-video-view .username=${username ?? null}></lb-video-view>`,
+			path: '/video/:stream_id',
+			render: ({ stream_id }) => html`<lb-video-view .streamId=${stream_id ?? null}></lb-video-view>`,
 		},
 		{ path: '/*', render: () => html`<lb-not-found-view></lb-not-found-view>` },
 	]);
