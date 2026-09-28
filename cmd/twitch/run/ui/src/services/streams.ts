@@ -33,6 +33,9 @@ const fetchStream = async (streamId: string): Promise<StreamInfo | null> => {
 	}
 
 	const response = await fetch(`/api/v1/details/${encodeURIComponent(streamId)}`);
+	if (response.status === 404) {
+		return null;
+	}
 	if (!response.ok) {
 		const errorText = await response.text();
 		throw new Error(`Failed to fetch stream details: ${errorText}`);
