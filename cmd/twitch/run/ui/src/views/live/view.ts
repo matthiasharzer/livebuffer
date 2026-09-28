@@ -42,7 +42,7 @@ export class LiveView extends Component {
 		if (!this.username) {
 			return html`<div class="status-wrapper"><p>Missing username in the URL.</p></div>`;
 		}
-		const url = `/api/v1/${this.username}/live/index.m3u8`;
+		const url = `/api/v1/live/${this.username}/index.m3u8`;
 
 		return html`
 			${this._liveStreamTask.render({

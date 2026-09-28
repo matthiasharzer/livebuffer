@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"iter"
 	"time"
 
 	"github.com/matthiasharzer/livebuffer/buffer/vod/filter"
@@ -36,20 +37,26 @@ func (d *Director) getStreamCommon(streamID string) (*streamCommon, error) {
 	}, nil
 }
 
-func (d *Director) getStreamDetailsBestEffort(filterFunc filter.Func) ([]stream.Details, error) {
-	managers := d.repository.GetStreamsSortedByStartTimeBestEffort(filterFunc)
+func (d *Director) getStreamDetailsBestEffort(filterFunc filter.Func) iter.Seq[stream.Details] {
+	return func(yield func(stream.Details) bool) {
+		managers := d.repository.ReadStreams(filterFunc)
 
-	var allDetails []stream.Details
-	for _, manager := range managers {
-		state := d.getStreamState(manager.StreamID())
-		details, err := manager.GetDetails(state)
-		if err != nil {
-			logging.Warn("failed to retrieve stream details", "stream_id", manager.StreamID(), "error", err)
-			continue
+		for manager, err := range managers {
+			if err != nil {
+				logging.Warn("failed to read stream manager", "error", err)
+				continue
+			}
+			state := d.getStreamState(manager.StreamID())
+			details, err := manager.GetDetails(state)
+			if err != nil {
+				logging.Warn("failed to retrieve stream details", "stream_id", manager.StreamID(), "error", err)
+				continue
+			}
+			if !yield(details) {
+				return
+			}
 		}
-		allDetails = append(allDetails, details)
 	}
-	return allDetails, nil
 }
 
 func (d *Director) GetStreamReader(ctx context.Context, streamID string) (stream.Details, io.ReadCloser, error) {
@@ -101,10 +108,6 @@ func (d *Director) GetStream(streamID string) (*stream.Details, error) {
 	return &common.details, nil
 }
 
-func (d *Director) GetStreams() ([]stream.Details, error) {
-	return d.getStreamDetailsBestEffort(filter.None())
-}
-
-func (d *Director) GetStreamsByBroadcaster(username string) ([]stream.Details, error) {
-	return d.getStreamDetailsBestEffort(filter.ByBroadcasterName(username))
+func (d *Director) GetStreams(filterFunc filter.Func) iter.Seq[stream.Details] {
+	return d.getStreamDetailsBestEffort(filterFunc)
 }

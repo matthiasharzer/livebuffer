@@ -5,7 +5,6 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/matthiasharzer/livebuffer/buffer/vod/filter"
 	"github.com/matthiasharzer/livebuffer/logging"
@@ -94,25 +93,6 @@ func (r *Repository) ReadAllStreams() iter.Seq2[stream.Manager, error] {
 
 func (r *Repository) ReadStreams(filterFunc filter.Func) iter.Seq2[stream.Manager, error] {
 	return filter.Apply(r.ReadAllStreams(), filterFunc)
-}
-
-// GetStreamsSortedByStartTimeBestEffort retrieves all streams on disk by best effort, ignoring errors and including
-// non-error read streams only.
-func (r *Repository) GetStreamsSortedByStartTimeBestEffort(filterFunc filter.Func) []stream.Manager {
-	var streams []stream.Manager
-	for streamInfo, err := range r.ReadStreams(filterFunc) {
-		if err != nil {
-			logging.Warn("failed to read stream. ignoring", "error", err)
-			continue
-		}
-		streams = append(streams, streamInfo)
-	}
-
-	slices.SortStableFunc(streams, func(a, b stream.Manager) int {
-		return a.Meta().StartedAt.Compare(b.Meta().StartedAt)
-	})
-
-	return streams
 }
 
 // ReadAllBufferEntryPaths reads all directory entries and returns the path to the entry, even when it does not
