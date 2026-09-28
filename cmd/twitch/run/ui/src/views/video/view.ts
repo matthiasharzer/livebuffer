@@ -56,16 +56,16 @@ export class VideoView extends Component {
 
 		return html`
 			${this._streamTask.render({
-			pending: () => html`<div class="status-wrapper"><p>Loading stream information...</p></div>`,
-			complete: (stream: StreamInfo | null) => {
-				if (!stream) {
-					return html`<div class="status-wrapper"><p>Stream not found.</p></div>`;
-				}
-				return html`<lb-video ${ref(this.videoRef)} .hlsSource="${url}" autoplay></lb-video>`;
-			},
-			error: e =>
-				html`<div class="status-wrapper"><p>Error loading stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
-		})}
+				pending: () => html`<div class="status-wrapper"><p>Loading stream information...</p></div>`,
+				complete: (stream: StreamInfo | null) => {
+					if (!stream) {
+						return html`<div class="status-wrapper"><p>Stream not found.</p></div>`;
+					}
+					return html`<lb-video ${ref(this.videoRef)} .hlsSource="${url}" autoplay></lb-video>`;
+				},
+				error: e =>
+					html`<div class="status-wrapper"><p>Error loading stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
+			})}
 		`;
 	}
 }
