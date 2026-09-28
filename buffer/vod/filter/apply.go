@@ -14,7 +14,7 @@ func Apply(items iter.Seq2[stream.Manager, error], filterFunc Func) iter.Seq2[st
 		for item, err := range items {
 			if err != nil {
 				yield(item, err)
-				return
+				continue
 			}
 			if !filterFunc(item) {
 				continue
