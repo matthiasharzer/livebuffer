@@ -17,9 +17,6 @@ import (
 func Handler(directory *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		streamID := r.PathValue("streamID")
-		if streamID == "" {
-			return
-		}
 		if !stream.IsStreamID(streamID) {
 			http.Error(w, "invalid stream_id", http.StatusBadRequest)
 			return
