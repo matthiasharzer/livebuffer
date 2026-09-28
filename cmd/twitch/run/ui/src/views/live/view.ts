@@ -42,21 +42,21 @@ export class LiveView extends Component {
 		if (!this.username) {
 			return html`<div class="status-wrapper"><p>Missing username in the URL.</p></div>`;
 		}
-		const url = `/api/v1/${this.username}/live/index.m3u8`;
+		const url = `/api/v1/live/${this.username}/index.m3u8`;
 
 		return html`
 			${this._liveStreamTask.render({
-				pending: () =>
-					html`<div class="status-wrapper"><p>Loading live stream information...</p></div>`,
-				complete: (stream: StreamInfo | null) => {
-					if (!stream) {
-						return html`<div class="status-wrapper"><p>${this.username} is not live.</p></div>`;
-					}
-					return html`<lb-live-video url="${url}"></lb-live-video>`;
-				},
-				error: e =>
-					html`<div class="status-wrapper"><p>Error loading live stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
-			})}
+			pending: () =>
+				html`<div class="status-wrapper"><p>Loading live stream information...</p></div>`,
+			complete: (stream: StreamInfo | null) => {
+				if (!stream) {
+					return html`<div class="status-wrapper"><p>${this.username} is not live.</p></div>`;
+				}
+				return html`<lb-live-video url="${url}"></lb-live-video>`;
+			},
+			error: e =>
+				html`<div class="status-wrapper"><p>Error loading live stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
+		})}
 		`;
 	}
 }

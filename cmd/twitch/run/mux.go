@@ -19,13 +19,13 @@ func GetMux(director *buffer.Director, usernames []string, eventSubHandler http.
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/v1/list", list.Handler(director))
-	mux.HandleFunc("GET /api/v1/details/{streamID}/", details.Handler(director))
-	mux.HandleFunc("GET /api/v1/download/{streamID}/", download.Handler(director))
-	mux.HandleFunc("GET /api/v1/clip/{streamID}/", clip.Handler(director))
+	mux.HandleFunc("GET /api/v1/details/{streamID}", details.Handler(director))
+	mux.HandleFunc("GET /api/v1/download/{streamID}", download.Handler(director))
+	mux.HandleFunc("GET /api/v1/clip/{streamID}", clip.Handler(director))
 	mux.HandleFunc("GET /api/v1/video/{streamID}/", video.Handler(director))
 
 	for _, username := range usernames {
-		mux.HandleFunc(fmt.Sprintf("GET /api/v1/%s/live/", username), live.Handler(director, username))
+		mux.HandleFunc(fmt.Sprintf("GET /api/v1/live/%s/", username), live.Handler(director, username))
 	}
 
 	mux.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) {

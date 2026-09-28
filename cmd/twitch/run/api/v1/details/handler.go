@@ -13,6 +13,10 @@ import (
 func Handler(directory *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		streamID := r.PathValue("streamID")
+		if streamID == "" {
+			return
+		}
+
 		streamDetails, err := directory.GetStream(streamID)
 		if err != nil {
 			http.Error(w, "failed to retrieve stream info", http.StatusInternalServerError)

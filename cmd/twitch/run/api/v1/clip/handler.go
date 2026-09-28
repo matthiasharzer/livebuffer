@@ -16,9 +16,8 @@ import (
 
 func Handler(directory *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		streamID := r.URL.Query().Get("stream_id")
+		streamID := r.PathValue("streamID")
 		if streamID == "" {
-			http.Error(w, "missing 'stream_id' query parameter", http.StatusBadRequest)
 			return
 		}
 		if !stream.IsStreamID(streamID) {
