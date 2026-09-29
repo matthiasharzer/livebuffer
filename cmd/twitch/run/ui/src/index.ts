@@ -6,5 +6,6 @@ import './views/live/view.ts';
 import './views/notfound/view.ts';
 import './views/video/view.ts';
 import './components/Background.ts';
-import './views/root/BroadcasterTile.ts';
-import './views/root/StreamTile.ts';
+import './components/BroadcasterTile.ts';
+import './components/StreamTile.ts';
+

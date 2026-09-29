@@ -1,7 +1,7 @@
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
-import { Component } from '../../litutil/Component';
-import type { StreamInfo } from '../../services/streams';
+import { Component } from '../litutil/Component';
+import type { StreamInfo } from '../services/streams';
 
 const formatDuration = (milliseconds: number): string => {
 	const totalSeconds = Math.floor(milliseconds / 1000);

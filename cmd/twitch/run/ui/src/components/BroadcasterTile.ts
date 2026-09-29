@@ -1,7 +1,7 @@
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
-import { Component } from '../../litutil/Component';
-import type { BroadcasterInfo } from '../../services/streams';
+import { Component } from '../litutil/Component';
+import type { BroadcasterInfo } from '../services/streams';
 
 export class BroadcasterTile extends Component {
 	static styles = css`
@@ -53,7 +53,6 @@ export class BroadcasterTile extends Component {
 			justify-content: flex-start;
 			align-items: center;
 			cursor: pointer;
-			user-select: none;
 
 			.content {
 				display: flex;
@@ -240,22 +239,20 @@ export class BroadcasterTile extends Component {
 							<p class="description">${this.streamsText} · live ${this.lastLiveText}</p>
 						</div>
 						<div class="actions">
-								${
-									this.latestStream && this.latestStream.state === 'live'
-										? html`<a class="watch-link" href="/live/${this.broadcaster.username}">Watch Live</a>`
-										: ''
-								}
+								${this.latestStream && this.latestStream.state === 'live'
+				? html`<a class="watch-link" href="/live/${this.broadcaster.username}">Watch Live</a>`
+				: ''
+			}
 						</div>
 					</div>
 				</summary>
 				<div class="stream-list">
-					${
-						this.mustBroadcaster.streams.length === 0
-							? html`<p class="no-streams">No streams available.</p>`
-							: this.sortedStreams.map(
-									stream => html`<lb-stream-tile .stream=${stream}></lb-stream-tile>`,
-								)
-					}
+					${this.mustBroadcaster.streams.length === 0
+				? html`<p class="no-streams">No streams available.</p>`
+				: this.sortedStreams.map(
+					stream => html`<lb-stream-tile .stream=${stream}></lb-stream-tile>`,
+				)
+			}
 
 				</div>
 			</details>
