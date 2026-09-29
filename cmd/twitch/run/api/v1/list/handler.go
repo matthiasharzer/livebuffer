@@ -36,8 +36,8 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 				Duration:             s.Duration.String(),
 				DurationMilliseconds: s.Duration.Milliseconds(),
 				StartedAt:            s.StartedAt,
-				BroadcasterUserName:  s.BroadcasterUserName,
-				StreamState:          string(s.StreamState),
+				Username:             s.BroadcasterUserName,
+				State:                string(s.StreamState),
 			})
 		}
 		response := Response{

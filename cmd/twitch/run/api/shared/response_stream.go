@@ -10,6 +10,6 @@ type ResponseStream struct {
 	Duration             string    `json:"duration"`
 	DurationMilliseconds int64     `json:"duration_milliseconds"`
 	StartedAt            time.Time `json:"started_at"`
-	BroadcasterUserName  string    `json:"broadcaster_user_name"`
-	StreamState          string    `json:"stream_state"`
+	Username             string    `json:"username"`
+	State                string    `json:"state"`
 }
