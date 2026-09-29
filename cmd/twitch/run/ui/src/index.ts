@@ -1,9 +1,10 @@
 import './App.ts';
 import './components/LiveVideo.ts';
 import './components/Video.ts';
-import './views/view.ts';
+import './views/root/view.ts';
 import './views/live/view.ts';
 import './views/notfound/view.ts';
 import './views/video/view.ts';
 import './components/Background.ts';
-
+import './views/root/BroadcasterTile.ts';
+import './views/root/StreamTile.ts';

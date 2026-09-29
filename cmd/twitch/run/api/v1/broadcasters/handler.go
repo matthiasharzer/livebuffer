@@ -13,7 +13,8 @@ import (
 )
 
 func buildResponseStreams(streams iter.Seq[stream.Details]) []shared.ResponseStream {
-	var responseStreams []shared.ResponseStream
+	//goland:noinspection GoPreferNilSlice
+	responseStreams := []shared.ResponseStream{}
 	for details := range streams {
 		responseStreams = append(responseStreams, shared.ResponseStreamFromDetails(details))
 	}

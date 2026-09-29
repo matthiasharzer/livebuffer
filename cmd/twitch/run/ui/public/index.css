@@ -27,4 +27,9 @@ body {
 :root {
 	--font-header: Karla, sans-serif;
 	--font-body: DMSans, sans-serif;
+
+	--primary-color: #9146ff;
+	--primary-reduced-color: #cd79fd;
+	--background: #1e1e1e;
+	--border-color: #333;
 }
