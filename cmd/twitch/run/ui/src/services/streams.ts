@@ -1,12 +1,25 @@
+interface BroadcasterInfo {
+	username: string;
+	streams: StreamInfo[];
+}
+
 interface StreamInfo {
 	id: string;
 	state: 'live' | 'archived';
 	size_bytes: number;
+	size: string; // human-readable size
 	duration_milliseconds: number;
+	started_at: string; // RFC 3339 timestamp
+	title: string;
+	username: string;
 }
 
 interface StreamListResponse {
 	streams: StreamInfo[];
+}
+
+interface BroadcasterInfoResponse {
+	broadcasters: BroadcasterInfo[];
 }
 
 const fetchStreamList = async (username: string): Promise<StreamInfo[]> => {
@@ -44,5 +57,16 @@ const fetchStream = async (streamId: string): Promise<StreamInfo | null> => {
 	return await response.json();
 };
 
-export type { StreamInfo };
-export { fetchLiveStream, fetchStream };
+const fetchBroadcasters = async (): Promise<BroadcasterInfo[]> => {
+	const response = await fetch('/api/v1/broadcasters');
+	if (!response.ok) {
+		const errorText = await response.text();
+		throw new Error(`Failed to fetch broadcasters: ${errorText}`);
+	}
+	const data: BroadcasterInfoResponse = await response.json();
+	const broadcasters = data.broadcasters.toSorted((a, b) => a.username.localeCompare(b.username));
+	return broadcasters;
+};
+
+export type { BroadcasterInfo, StreamInfo };
+export { fetchBroadcasters, fetchLiveStream, fetchStream };

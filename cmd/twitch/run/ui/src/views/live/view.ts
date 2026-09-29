@@ -50,7 +50,7 @@ export class LiveView extends Component {
 					html`<div class="status-wrapper"><p>Loading live stream information...</p></div>`,
 				complete: (stream: StreamInfo | null) => {
 					if (!stream) {
-						return html`<div class="status-wrapper"><p>${this.username} is not live.</p></div>`;
+						return html`<div class="status-wrapper"><p>${this.username} is not live</p></div>`;
 					}
 					return html`<lb-live-video url="${url}"></lb-live-video>`;
 				},

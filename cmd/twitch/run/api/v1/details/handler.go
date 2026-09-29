@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/dustin/go-humanize"
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/shared"
 	"github.com/matthiasharzer/livebuffer/logging"
@@ -29,18 +28,9 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			return
 		}
 
+		response := shared.ResponseStreamFromDetails(*streamDetails)
+
 		w.Header().Set("Content-Type", "application/json")
-		response := shared.ResponseStream{
-			ID:                   streamDetails.ID,
-			Title:                streamDetails.Title,
-			Size:                 humanize.Bytes(uint64(streamDetails.Size)),
-			SizeBytes:            streamDetails.Size,
-			Duration:             streamDetails.Duration.String(),
-			DurationMilliseconds: streamDetails.Duration.Milliseconds(),
-			StartedAt:            streamDetails.StartedAt,
-			Username:             streamDetails.BroadcasterUserName,
-			State:                string(streamDetails.StreamState),
-		}
 		err = json.NewEncoder(w).Encode(response)
 		if err != nil {
 			logging.Error("failed to encode response", "error", err)

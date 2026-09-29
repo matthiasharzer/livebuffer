@@ -38,6 +38,22 @@ h1, h2, h3, h4, h5, h6 {
 #root, #__next {
   isolation: isolate;
 }
+
+a.watch-link {
+	text-decoration: none;
+	color: var(--color, #007bff);
+	font-weight: bold;
+	padding: 0.25rem 0.5rem;
+	border: 1px solid var(--color, #007bff);
+	border-radius: 0.25rem;
+	transition: background-color 0.3s, color 0.3s;
+	white-space: nowrap;
+
+	&:hover {
+		background-color: var(--color, #007bff);
+		color: white;
+	}
+}
 `;
 
 export class Component extends LitElement {

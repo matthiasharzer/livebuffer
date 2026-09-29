@@ -80,6 +80,17 @@ func (d *Director) IsObservedBroadcaster(username string) bool {
 	return false
 }
 
+func (d *Director) GetBroadcasterNames() []string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	broadcasters := make([]string, 0, len(d.monitorByBroadcasterUserName))
+	for username := range d.monitorByBroadcasterUserName {
+		broadcasters = append(broadcasters, username)
+	}
+	return broadcasters
+}
+
 func (d *Director) GetLiveStreamFilesDirectory(username string) (string, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

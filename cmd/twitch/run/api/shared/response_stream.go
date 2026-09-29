@@ -1,6 +1,11 @@
 package shared
 
-import "time"
+import (
+	"time"
+
+	"github.com/dustin/go-humanize"
+	"github.com/matthiasharzer/livebuffer/stream"
+)
 
 type ResponseStream struct {
 	ID                   string    `json:"id"`
@@ -12,4 +17,18 @@ type ResponseStream struct {
 	StartedAt            time.Time `json:"started_at"`
 	Username             string    `json:"username"`
 	State                string    `json:"state"`
+}
+
+func ResponseStreamFromDetails(details stream.Details) ResponseStream {
+	return ResponseStream{
+		ID:                   details.ID,
+		Title:                details.Title,
+		Size:                 humanize.Bytes(uint64(details.Size)),
+		SizeBytes:            details.Size,
+		Duration:             details.Duration.String(),
+		DurationMilliseconds: details.Duration.Milliseconds(),
+		StartedAt:            details.StartedAt,
+		Username:             details.BroadcasterUserName,
+		State:                string(details.StreamState),
+	}
 }
