@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
+	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/broadcasters"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/clip"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/details"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/download"
@@ -21,6 +22,7 @@ func GetMux(director *buffer.Director, usernames []string, eventSubHandler http.
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/v1/list", list.Handler(director))
+	mux.HandleFunc("GET /api/v1/broadcasters", broadcasters.Handler(director))
 	mux.HandleFunc("GET /api/v1/details/{streamID}", details.Handler(director))
 	mux.HandleFunc("GET /api/v1/download/{streamID}", download.Handler(director))
 	mux.HandleFunc("GET /api/v1/clip/{streamID}", clip.Handler(director))
