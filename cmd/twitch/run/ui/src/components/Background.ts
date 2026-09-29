@@ -4,10 +4,10 @@ import { Component } from '../litutil/Component.ts';
 export class Background extends Component {
 	static styles = css`
 		:host {
+			position: fixed;
 			--background: 	#121212;
 			--dots: #f0f0f0;
 
-			position: absolute;
 			background-color: var(--background);
 			top: 0;
 			left: 0;

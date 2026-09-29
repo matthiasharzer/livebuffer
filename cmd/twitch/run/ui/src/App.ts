@@ -42,8 +42,8 @@ export class App extends Component {
 
 	render() {
 		return html`
+			<lb-background></lb-background>
 			<main>
-				<lb-background></lb-background>
 				${this.router.outlet()}
 			</main>
 		`;
