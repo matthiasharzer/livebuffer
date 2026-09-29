@@ -60,6 +60,13 @@ func (d *Director) getStreamState(streamID string) stream.State {
 	return stream.StateArchived
 }
 
+func (d *Director) GetStreamState(streamID string) stream.State {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.getStreamState(streamID)
+}
+
 func (d *Director) IsObservedBroadcaster(username string) bool {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

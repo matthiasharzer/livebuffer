@@ -15,6 +15,8 @@ import (
 	"github.com/matthiasharzer/livebuffer/util/httputil"
 )
 
+const eventSubPath = "/api/v1/twitch-event-sub"
+
 func GetMux(director *buffer.Director, usernames []string, eventSubHandler http.Handler) *http.ServeMux {
 	mux := http.NewServeMux()
 
@@ -32,7 +34,7 @@ func GetMux(director *buffer.Director, usernames []string, eventSubHandler http.
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})
-	mux.Handle("POST /api/v1/twitch-event-sub", eventSubHandler)
+	mux.Handle(fmt.Sprintf("POST %s", eventSubPath), eventSubHandler)
 	mux.Handle("GET /api/", http.NotFoundHandler())
 	mux.Handle("GET /",
 		httputil.UseMiddleware(

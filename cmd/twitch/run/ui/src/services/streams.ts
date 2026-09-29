@@ -1,6 +1,6 @@
 interface StreamInfo {
 	id: string;
-	stream_state: 'live' | 'archived';
+	state: 'live' | 'archived';
 	size_bytes: number;
 	duration_milliseconds: number;
 }
@@ -24,7 +24,7 @@ const fetchStreamList = async (username: string): Promise<StreamInfo[]> => {
 
 const fetchLiveStream = async (username: string): Promise<StreamInfo | null> => {
 	const streams = await fetchStreamList(username);
-	return streams.find(stream => stream.stream_state === 'live') || null;
+	return streams.find(stream => stream.state === 'live') || null;
 };
 
 const fetchStream = async (streamId: string): Promise<StreamInfo | null> => {

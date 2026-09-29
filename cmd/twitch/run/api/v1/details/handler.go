@@ -38,8 +38,8 @@ func Handler(directory *buffer.Director) http.HandlerFunc {
 			Duration:             streamDetails.Duration.String(),
 			DurationMilliseconds: streamDetails.Duration.Milliseconds(),
 			StartedAt:            streamDetails.StartedAt,
-			BroadcasterUserName:  streamDetails.BroadcasterUserName,
-			StreamState:          string(streamDetails.StreamState),
+			Username:             streamDetails.BroadcasterUserName,
+			State:                string(streamDetails.StreamState),
 		}
 		err = json.NewEncoder(w).Encode(response)
 		if err != nil {
