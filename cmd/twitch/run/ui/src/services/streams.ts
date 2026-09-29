@@ -14,6 +14,10 @@ interface StreamListResponse {
 	streams: StreamInfo[];
 }
 
+interface BroadcasterInfoResponse {
+	broadcasters: BroadcasterInfo[];
+}
+
 const fetchStreamList = async (username: string): Promise<StreamInfo[]> => {
 	if (!username) {
 		return [];
@@ -55,7 +59,8 @@ const fetchBroadcasters = async (): Promise<BroadcasterInfo[]> => {
 		const errorText = await response.text();
 		throw new Error(`Failed to fetch broadcasters: ${errorText}`);
 	}
-	return await response.json();
+	const data: BroadcasterInfoResponse = await response.json();
+	return data.broadcasters;
 };
 
 
