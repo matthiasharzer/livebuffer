@@ -14,6 +14,7 @@ export class RootView extends Component {
 			height: 100%;
 			padding: 1rem;
 			overflow-y: auto;
+			scrollbar-gutter: stable;
 		}
 
 		.overview {
@@ -60,7 +61,11 @@ export class RootView extends Component {
 							if (broadcasters.length === 0) {
 								return html`<p>No broadcasters found.</p>`;
 							}
-							return this.renderBroadcasters(broadcasters);
+							return [
+								...this.renderBroadcasters(broadcasters),
+								...this.renderBroadcasters(broadcasters),
+								...this.renderBroadcasters(broadcasters),
+							];
 						},
 						error: e =>
 							html`<p>Error loading broadcasters: ${e instanceof Error ? e.message : 'Unknown error'}</p>`,
