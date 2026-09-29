@@ -169,7 +169,7 @@ var Command = &cobra.Command{
 		if before, ok := strings.CutSuffix(liveBufferPublicURL, "/"); ok {
 			liveBufferPublicURL = before
 		}
-		eventSubURL, err := url.Parse(fmt.Sprintf("%s/api/v1/twitch-event-sub", liveBufferPublicURL))
+		eventSubURL, err := url.Parse(fmt.Sprintf("%s%s", liveBufferPublicURL, eventSubPath))
 		if err != nil {
 			return fmt.Errorf("failed to parse live buffer public URL: %w", err)
 		}
