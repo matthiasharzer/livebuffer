@@ -8,6 +8,12 @@ import (
 
 type Func = func(manager stream.Manager) bool
 
+func And(a, b Func) Func {
+	return func(manager stream.Manager) bool {
+		return a(manager) && b(manager)
+	}
+}
+
 func ByBroadcasterName(name string) Func {
 	return func(manager stream.Manager) bool {
 		return strings.EqualFold(manager.Meta().BroadcasterUserName, name)
