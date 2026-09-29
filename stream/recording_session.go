@@ -89,6 +89,7 @@ func (rs *RecordingSession) start() error {
 		if err != nil {
 			logging.Warn("streamlink command finished with error", "error", err)
 		}
+		logging.Info("recording session finished", "stream_id", rs.streamID)
 	}()
 
 	return nil
