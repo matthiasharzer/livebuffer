@@ -8,4 +8,3 @@ import './views/video/view.ts';
 import './components/Background.ts';
 import './components/BroadcasterTile.ts';
 import './components/StreamTile.ts';
-
