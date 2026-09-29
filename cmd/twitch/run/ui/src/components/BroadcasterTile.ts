@@ -177,9 +177,11 @@ export class BroadcasterTile extends Component {
 		if (latestStream.state === 'live') {
 			return 'right now';
 		}
-		const startedAt = new Date(latestStream.started_at);
+		const startedAtMs = new Date(latestStream.started_at).getTime();
+		const lastLiveMs = startedAtMs + latestStream.duration_milliseconds;
+
 		const now = new Date();
-		const diffMs = now.getTime() - startedAt.getTime();
+		const diffMs = now.getTime() - lastLiveMs;
 		const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 		if (diffDays > 0) {
 			return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
@@ -239,22 +241,20 @@ export class BroadcasterTile extends Component {
 							<p class="description">${this.streamsText} · live ${this.lastLiveText}</p>
 						</div>
 						<div class="actions">
-								${
-									this.latestStream && this.latestStream.state === 'live'
-										? html`<a class="watch-link" href="/live/${this.broadcaster.username}">Watch Live</a>`
-										: ''
-								}
+								${this.latestStream && this.latestStream.state === 'live'
+				? html`<a class="watch-link" href="/live/${this.broadcaster.username}">Watch Live</a>`
+				: ''
+			}
 						</div>
 					</div>
 				</summary>
 				<div class="stream-list">
-					${
-						this.mustBroadcaster.streams.length === 0
-							? html`<p class="no-streams">No streams available.</p>`
-							: this.sortedStreams.map(
-									stream => html`<lb-stream-tile .stream=${stream}></lb-stream-tile>`,
-								)
-					}
+					${this.mustBroadcaster.streams.length === 0
+				? html`<p class="no-streams">No streams available.</p>`
+				: this.sortedStreams.map(
+					stream => html`<lb-stream-tile .stream=${stream}></lb-stream-tile>`,
+				)
+			}
 
 				</div>
 			</details>

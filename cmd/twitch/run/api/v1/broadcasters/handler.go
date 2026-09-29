@@ -25,7 +25,7 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		broadcasters := director.GetBroadcasterNames()
 
-		var responseBroadcasters []ResponseBroadcaster
+		responseBroadcasters := make([]ResponseBroadcaster, 0, len(broadcasters))
 		for _, broadcasterName := range broadcasters {
 			streams := director.GetStreams(filter.ByBroadcasterName(broadcasterName))
 
