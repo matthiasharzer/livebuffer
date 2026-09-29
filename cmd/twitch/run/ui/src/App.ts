@@ -17,9 +17,17 @@ export class App extends Component {
 			width: 100%;
 			height: 100%;
 		}
+
+		lb-background {
+			z-index: -1;
+		}
 	`;
 
 	private router = new Router(this, [
+		{
+			path: '/',
+			render: () => html`<lb-root-view></lb-root-view>`,
+		},
 		{
 			path: '/live/:username',
 			render: ({ username }) => html`<lb-live-view .username=${username ?? null}></lb-live-view>`,
@@ -35,6 +43,7 @@ export class App extends Component {
 	render() {
 		return html`
 			<main>
+				<lb-background></lb-background>
 				${this.router.outlet()}
 			</main>
 		`;

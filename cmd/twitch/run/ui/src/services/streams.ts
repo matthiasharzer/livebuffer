@@ -1,3 +1,8 @@
+interface BroadcasterInfo {
+	username: string;
+	streams: StreamInfo[];
+}
+
 interface StreamInfo {
 	id: string;
 	state: 'live' | 'archived';
@@ -44,5 +49,15 @@ const fetchStream = async (streamId: string): Promise<StreamInfo | null> => {
 	return await response.json();
 };
 
-export type { StreamInfo };
-export { fetchLiveStream, fetchStream };
+const fetchBroadcasters = async (): Promise<BroadcasterInfo[]> => {
+	const response = await fetch('/api/v1/broadcasters');
+	if (!response.ok) {
+		const errorText = await response.text();
+		throw new Error(`Failed to fetch broadcasters: ${errorText}`);
+	}
+	return await response.json();
+};
+
+
+export type { BroadcasterInfo, StreamInfo };
+export { fetchBroadcasters, fetchLiveStream, fetchStream };
