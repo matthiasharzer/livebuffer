@@ -2,7 +2,6 @@ package broadcasters
 
 import (
 	"encoding/json"
-	"iter"
 	"net/http"
 
 	"github.com/matthiasharzer/livebuffer/buffer"
@@ -12,10 +11,9 @@ import (
 	"github.com/matthiasharzer/livebuffer/stream"
 )
 
-func buildResponseStreams(streams iter.Seq[stream.Details]) []shared.ResponseStream {
-	//goland:noinspection GoPreferNilSlice
-	responseStreams := []shared.ResponseStream{}
-	for details := range streams {
+func buildResponseStreams(streams []stream.Details) []shared.ResponseStream {
+	responseStreams := make([]shared.ResponseStream, 0, len(streams))
+	for _, details := range streams {
 		responseStreams = append(responseStreams, shared.ResponseStreamFromDetails(details))
 	}
 	return responseStreams
@@ -24,10 +22,26 @@ func buildResponseStreams(streams iter.Seq[stream.Details]) []shared.ResponseStr
 func Handler(director *buffer.Director) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		broadcasters := director.GetBroadcasterNames()
+		streams := director.GetStreams(filter.All())
+
+		streamsByBroadcaster := make(map[string][]stream.Details)
+		for _, broadcasterName := range broadcasters {
+			streamsByBroadcaster[broadcasterName] = []stream.Details{}
+		}
+		for s := range streams {
+			broadcasterStreams, ok := streamsByBroadcaster[s.BroadcasterUserName]
+			if !ok {
+				continue
+			}
+			streamsByBroadcaster[s.BroadcasterUserName] = append(broadcasterStreams, s)
+		}
 
 		responseBroadcasters := make([]ResponseBroadcaster, 0, len(broadcasters))
 		for _, broadcasterName := range broadcasters {
-			streams := director.GetStreams(filter.ByBroadcasterName(broadcasterName))
+			streams, ok := streamsByBroadcaster[broadcasterName]
+			if !ok {
+				continue
+			}
 
 			responseBroadcaster := ResponseBroadcaster{
 				Username: broadcasterName,
