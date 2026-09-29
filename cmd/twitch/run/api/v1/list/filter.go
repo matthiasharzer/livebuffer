@@ -27,10 +27,7 @@ var filterBuilders = map[string]filterBuilder{
 			return nil, fmt.Errorf("invalid state '%s'", stateStr)
 		}
 		return func(manager stream.Manager) bool {
-			if director.GetStreamState(manager.StreamID()) == state {
-				return true
-			}
-			return false
+			return director.GetStreamState(manager.StreamID()) == state
 		}, nil
 	},
 }
