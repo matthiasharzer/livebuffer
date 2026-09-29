@@ -103,11 +103,9 @@ A stream returned by either `/api/v1/list` or `/api/v1/details/{streamID}` has t
 | `size_bytes`            | int    | The size of the stream in bytes.                                                        |
 
 #### UI
-livebuffer comes with a small UI to restream buffered livestreams or recordings. Currently, the UI only supports the following endpoints:
-- `/live/{username}`: Provides a video player for the current livestream of the user, if they are live.
-- `/video/{streamID}`: Provides a video player for the specified `streamID`.
+livebuffer comes with a small UI to get an overview of the available broadcasters and their recorded streams, as well as a simple video player to watch the streams. The UI is available at the root of the REST API.
 
-At the moment, it is not possible to browse the list of available streams/users or show/create clips via the UI. This is planned for a future release.
+At the moment, it is not possible to create clips via the UI. This is planned for a future release.
 
 ### `version` Command
 Print the version of the tool:
