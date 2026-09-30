@@ -1,4 +1,5 @@
 import { Task } from '@lit/task';
+import type { HlsConfig } from 'hls.js';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { Component } from '../../litutil/Component';
@@ -22,7 +23,7 @@ export class LiveView extends Component {
 			text-align: center;
 		}
 
-		lb-live-video {
+		lb-video {
 			display: block;
 			height: 100%;
 		}
@@ -38,6 +39,16 @@ export class LiveView extends Component {
 		},
 	});
 
+	get hlsConfig(): Partial<HlsConfig> {
+		return {
+			autoStartLoad: true,
+			startPosition: -1,
+			debug: false,
+			liveDurationInfinity: true,
+			liveBackBufferLength: 0, // Keep memory usage low
+		};
+	}
+
 	render() {
 		if (!this.username) {
 			return html`<div class="status-wrapper"><p>Missing username in the URL.</p></div>`;
@@ -52,7 +63,7 @@ export class LiveView extends Component {
 					if (!stream) {
 						return html`<div class="status-wrapper"><p>${this.username} is not live</p></div>`;
 					}
-					return html`<lb-live-video url="${url}"></lb-live-video>`;
+					return html`<lb-video .hlsSource=${url} .hlsConfig=${this.hlsConfig} autoplay></lb-video>`;
 				},
 				error: e =>
 					html`<div class="status-wrapper"><p>Error loading live stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
