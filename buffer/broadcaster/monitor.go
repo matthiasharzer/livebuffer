@@ -66,10 +66,10 @@ func (m *Monitor) onlineStateChanged(state twitch.StreamOnlineState) {
 			startedAt = *state.StartedAt
 		}
 		m.wentLive(stream.WentLiveEvent{
-			StreamID:            state.StreamID,
-			Title:               state.Title,
-			BroadcasterUserName: state.BroadcasterUserName,
-			StartedAt:           startedAt,
+			StreamID:             state.StreamID,
+			Title:                state.Title,
+			BroadcasterUserLogin: state.BroadcasterUserLogin,
+			StartedAt:            startedAt,
 		})
 	} else {
 		m.wentOffline()
@@ -100,7 +100,7 @@ func (m *Monitor) startRecording(event stream.WentLiveEvent) bool {
 }
 
 func (m *Monitor) wentLive(event stream.WentLiveEvent) {
-	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName, "stream_id", event.StreamID)
+	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserLogin, "stream_id", event.StreamID)
 	m.mu.Lock()
 	success := m.startRecording(event)
 	m.mu.Unlock()
@@ -110,7 +110,7 @@ func (m *Monitor) wentLive(event stream.WentLiveEvent) {
 	}
 
 	m.recordingStateChannel.Publish(RecordingStateRecording)
-	logging.Info("started recording session", "username", event.BroadcasterUserName, "stream_id", event.StreamID)
+	logging.Info("started recording session", "username", event.BroadcasterUserLogin, "stream_id", event.StreamID)
 }
 
 func (m *Monitor) wentOffline() {
