@@ -48,6 +48,9 @@ export class Video extends Component {
 	@property({ attribute: false })
 	hlsSource: string | null = null;
 
+	@property({ type: String })
+	title = '';
+
 	@state()
 	enabled = true;
 
@@ -59,6 +62,43 @@ export class Video extends Component {
 
 	@state()
 	loaded = false;
+
+	private setupMediaSession() {
+		if (!('navigator' in window) || !('mediaSession' in navigator)) {
+			return;
+		}
+		if (!this.videoElement) {
+			return;
+		}
+		console.log(this.title);
+		const video = this.videoElement;
+		navigator.mediaSession.metadata = new MediaMetadata({
+			title: this.title || 'LiveBuffer Video',
+		});
+
+		navigator.mediaSession.setActionHandler('play', async () => {
+			try {
+				await video.play();
+				navigator.mediaSession.playbackState = 'playing';
+			} catch (err) {
+				console.error('Play failed:', err);
+			}
+		});
+
+		navigator.mediaSession.setActionHandler('pause', () => {
+			video.pause();
+			navigator.mediaSession.playbackState = 'paused';
+		});
+
+		// Optional: Seeking (if not a live stream)
+		navigator.mediaSession.setActionHandler('seekto', details => {
+			if (details.fastSeek && 'fastSeek' in video) {
+				video.fastSeek(details.seekTime || 0);
+			} else {
+				video.currentTime = details.seekTime || 0;
+			}
+		});
+	}
 
 	get videoElement(): HTMLVideoElement | null {
 		return this.videoElementRef.value || null;
@@ -98,6 +138,8 @@ export class Video extends Component {
 				this.videoElement?.play();
 			}
 		});
+
+		this.setupMediaSession();
 	}
 
 	disconnectedCallback(): void {

@@ -73,11 +73,7 @@ export class StreamTile extends Component {
 	}
 
 	renderWatchLink() {
-		if (this.mustStream.state === 'live') {
-			return html`<a class="watch-link" href="/live/${this.mustStream.username}">Watch Live</a>`;
-		} else {
-			return html`<a class="watch-link" href="/video/${this.mustStream.id}">Watch Video</a>`;
-		}
+		return html`<a class="watch-link" href="/video/${this.mustStream.id}">Watch Now</a>`;
 	}
 
 	render() {

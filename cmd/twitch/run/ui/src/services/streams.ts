@@ -22,11 +22,24 @@ interface BroadcasterInfoResponse {
 	broadcasters: BroadcasterInfo[];
 }
 
-const fetchStreamList = async (username: string): Promise<StreamInfo[]> => {
+interface StreamListOptions {
+	state: 'live' | 'archived';
+}
+
+const fetchStreamList = async (
+	username: string,
+	options?: Partial<StreamListOptions>,
+): Promise<StreamInfo[]> => {
 	if (!username) {
 		return [];
 	}
-	const response = await fetch(`/api/v1/list?username=${encodeURIComponent(username)}`);
+
+	let url = `/api/v1/list?username=${encodeURIComponent(username)}`;
+	if (options?.state) {
+		url += `&state=${encodeURIComponent(options.state)}`;
+	}
+
+	const response = await fetch(url);
 	if (!response.ok) {
 		const errorText = await response.text();
 		throw new Error(`Failed to fetch stream list: ${errorText}`);
@@ -36,8 +49,8 @@ const fetchStreamList = async (username: string): Promise<StreamInfo[]> => {
 };
 
 const fetchLiveStream = async (username: string): Promise<StreamInfo | null> => {
-	const streams = await fetchStreamList(username);
-	return streams.find(stream => stream.state === 'live') || null;
+	const streams = await fetchStreamList(username, { state: 'live' });
+	return streams.length > 0 ? streams[0] : null;
 };
 
 const fetchStream = async (streamId: string): Promise<StreamInfo | null> => {

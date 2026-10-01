@@ -61,7 +61,7 @@ export class VideoView extends Component {
 					if (!stream) {
 						return html`<div class="status-wrapper"><p>Stream not found.</p></div>`;
 					}
-					return html`<lb-video ${ref(this.videoRef)} .hlsSource="${url}" autoplay></lb-video>`;
+					return html`<lb-video ${ref(this.videoRef)} .title=${stream.title} .hlsSource="${url}" autoplay></lb-video>`;
 				},
 				error: e =>
 					html`<div class="status-wrapper"><p>Error loading stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
