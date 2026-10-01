@@ -37,13 +37,57 @@ export class Video extends Component {
 				display: none;
 			}
 		}
+
+		.control-bar {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			display: flex;
+			justify-content: space-between;
+			padding: 0.5rem;
+			z-index: 10;
+			opacity: 1;
+			transition: opacity 0.3s ease, display 0.3s ease;
+
+			&.hidden:not(:hover) {
+				opacity: 0;
+			}
+
+			button {
+				background-color: var(--background, #1e1e1e);
+				border: 1px solid var(--border-color, #333);
+
+				color: var(--text-color, #e3e3e3);
+				font-weight: 500;
+				font-size: 1rem;
+				cursor: pointer;
+				padding: 0.25rem 1rem;
+				border-radius: 4px;
+				transition: background-color 0.3s, transform 0.1s;
+
+
+				&:hover {
+					background-color: rgba(255, 255, 255, 0.2);
+				}
+
+				&.go-back {
+					&:hover {
+						transform: translateX(-2px);
+					}
+					background-color: transparent;
+					padding: 0.25rem ;
+					border: none;
+				}
+			}
+		}
 	`;
 
 	@property({ type: Boolean })
 	autoplay: boolean = false;
 
-	@property({ attribute: false })
-	hlsConfig?: Partial<HlsConfig>;
+	@property({ type: Boolean })
+	live = false;
 
 	@property({ attribute: false })
 	hlsSource: string | null = null;
@@ -54,14 +98,32 @@ export class Video extends Component {
 	@state()
 	enabled = true;
 
-	player: Hls | null = null;
-	videoElementRef: Ref<HTMLVideoElement> = createRef();
-
 	@state()
 	error: string | null = null;
 
 	@state()
 	loaded = false;
+
+	@state()
+	showCustomControls = false;
+
+	player: Hls | null = null;
+	videoElementRef: Ref<HTMLVideoElement> = createRef();
+	controlHideTimeout: number | null = null;
+
+	get hlsConfig(): Partial<HlsConfig> {
+		if (this.live) {
+			return {
+				autoStartLoad: true,
+				startPosition: -1,
+				liveBackBufferLength: 0, // Keep memory usage low
+			};
+		}
+		return {
+			autoStartLoad: true,
+			startPosition: 0,
+		};
+	}
 
 	private setupMediaSession() {
 		if (!('navigator' in window) || !('mediaSession' in navigator)) {
@@ -70,7 +132,6 @@ export class Video extends Component {
 		if (!this.videoElement) {
 			return;
 		}
-		console.log(this.title);
 		const video = this.videoElement;
 		navigator.mediaSession.metadata = new MediaMetadata({
 			title: this.title || 'LiveBuffer Video',
@@ -104,11 +165,45 @@ export class Video extends Component {
 		return this.videoElementRef.value || null;
 	}
 
+	private registerInteractionListeners() {
+		if (!this.videoElement) {
+			return;
+		}
+
+		this.videoElement.addEventListener('mousemove', () => {
+			this.showCustomControls = true;
+			if (this.videoElement?.paused) {
+				return;
+			}
+			this.controlHideTimeout && clearTimeout(this.controlHideTimeout);
+			this.controlHideTimeout = window.setTimeout(() => {
+				this.showCustomControls = false;
+			}, 3000);
+		});
+		this.videoElement.addEventListener('mouseleave', () => {
+			if (this.videoElement?.paused) {
+				return;
+			}
+			this.showCustomControls = false;
+		});
+		this.videoElement.addEventListener('play', () => {
+			navigator.mediaSession.playbackState = 'playing';
+		});
+		this.videoElement.addEventListener('pause', () => {
+			navigator.mediaSession.playbackState = 'paused';
+			this.controlHideTimeout && clearTimeout(this.controlHideTimeout);
+			this.showCustomControls = true;
+		});
+	}
+
 	protected firstUpdated(_changedProperties: PropertyValues): void {
 		super.firstUpdated(_changedProperties);
 		if (!this.videoElement) {
 			return;
 		}
+
+		this.registerInteractionListeners();
+
 		if (!this.hlsSource) {
 			this.error = 'No HLS source provided.';
 			return;
@@ -146,14 +241,39 @@ export class Video extends Component {
 		this.player?.destroy();
 	}
 
+	goToLive() {
+		if (!this.videoElement) {
+			return;
+		}
+		this.videoElement.currentTime = this.videoElement.duration - 5;
+	}
+
+	goBack() {
+		window.history.back();
+	}
+
 	render() {
 		const showStatus = !this.loaded || this.error;
 		return html`
+			<div class="control-bar ${this.showCustomControls ? 'visible' : 'hidden'}">
+				<button class="go-back" @click=${() => this.goBack()}>
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M400-240 160-480l240-240 56 58-142 142h486v80H314l142 142-56 58Z"/></svg>
+				</button>
+				${
+					this.live
+						? html`
+					<button class="fast-forward-live" @click=${() => this.goToLive()}>
+						Jump Live
+					</button>
+					`
+						: ''
+				}
+			</div>
 			<div class="status-wrapper ${showStatus ? 'visible' : 'hidden'}">
 				${this.error ? html`<div class="status-wrapper"><p>${this.error}</p></div>` : ''}
 				${!this.loaded && !this.error ? html`<div class="status-wrapper"><p>Loading stream...</p></div>` : ''}
 			</div>
-			<video ${ref(this.videoElementRef)} ?autoplay="${this.autoplay}" muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
+			<video ${ref(this.videoElementRef)} autopictureinpicture ?autoplay="${this.autoplay}" muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
 		`;
 	}
 }

@@ -1,5 +1,4 @@
 import { Task } from '@lit/task';
-import type { HlsConfig } from 'hls.js';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { createRef, ref } from 'lit/directives/ref.js';
@@ -40,13 +39,6 @@ export class VideoView extends Component {
 			return fetchStream(streamId);
 		},
 	});
-
-	get hlsConfig(): Partial<HlsConfig> {
-		return {
-			autoStartLoad: true,
-			startPosition: 0,
-		};
-	}
 
 	render() {
 		if (!this.streamId) {
