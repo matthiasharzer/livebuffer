@@ -23,7 +23,7 @@ func StartRecording(event WentLiveEvent, streamDirectory string) (*RecordingSess
 	err := WriteMetadata(streamDirectory, Metadata{
 		ID:                  event.StreamID,
 		Title:               event.Title,
-		BroadcasterUserName: event.BroadcasterUserName,
+		BroadcasterUserName: event.BroadcasterUserLogin,
 		StartedAt:           event.StartedAt,
 	})
 	if err != nil {
@@ -38,7 +38,7 @@ func StartRecording(event WentLiveEvent, streamDirectory string) (*RecordingSess
 
 	recordingContext, cancel := context.WithCancel(context.Background())
 
-	recorder, err := twitch.NewRecorder(event.BroadcasterUserName)
+	recorder, err := twitch.NewRecorder(event.BroadcasterUserLogin)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to create twitch recorder: %w", err)

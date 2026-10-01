@@ -13,18 +13,19 @@ import (
 )
 
 type StreamOnlineState struct {
-	StreamID            string
-	IsOnline            bool
-	BroadcasterUserName string
-	Title               string
-	StartedAt           *time.Time
+	StreamID             string
+	IsOnline             bool
+	BroadcasterUserLogin string
+	Title                string
+	StartedAt            *time.Time
 }
 
 type streamOnlineOfflineEventPayload struct {
-	ID                  string    `json:"id"`
-	BroadcasterUserName string    `json:"broadcaster_user_name"`
-	BroadcasterUserID   string    `json:"broadcaster_user_id"`
-	StartedAt           time.Time `json:"started_at"`
+	ID                   string    `json:"id"`
+	BroadcasterUserName  string    `json:"broadcaster_user_name"`
+	BroadcasterUserID    string    `json:"broadcaster_user_id"`
+	BroadcasterUserLogin string    `json:"broadcaster_user_login"`
+	StartedAt            time.Time `json:"started_at"`
 }
 
 type Client struct {
@@ -96,14 +97,13 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 		if stream != nil {
 			streamTitle = stream.Title
 		}
-
-		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "title", streamTitle, "started_at", payload.StartedAt)
+		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "broadcaster_id", payload.BroadcasterUserID, "title", streamTitle, "started_at", payload.StartedAt)
 		c.onlineChannel.Publish(StreamOnlineState{
-			StreamID:            payload.ID,
-			IsOnline:            notification.Subscription.Type == "stream.online",
-			BroadcasterUserName: payload.BroadcasterUserName,
-			Title:               streamTitle,
-			StartedAt:           &payload.StartedAt,
+			StreamID:             payload.ID,
+			IsOnline:             notification.Subscription.Type == "stream.online",
+			BroadcasterUserLogin: payload.BroadcasterUserLogin,
+			Title:                streamTitle,
+			StartedAt:            &payload.StartedAt,
 		})
 	default:
 		logging.Warn("received unknown event", "type", notification.Subscription.Type)
@@ -121,11 +121,11 @@ func (c *Client) HandleInitialStreamState() error {
 	}
 
 	c.onlineChannel.Publish(StreamOnlineState{
-		StreamID:            stream.ID,
-		IsOnline:            true,
-		BroadcasterUserName: c.username,
-		Title:               stream.Title,
-		StartedAt:           &stream.StartedAt,
+		StreamID:             stream.ID,
+		IsOnline:             true,
+		BroadcasterUserLogin: c.username,
+		Title:                stream.Title,
+		StartedAt:            &stream.StartedAt,
 	})
 
 	return nil
