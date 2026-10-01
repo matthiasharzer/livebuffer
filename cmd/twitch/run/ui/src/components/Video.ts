@@ -104,12 +104,8 @@ export class Video extends Component {
 	@state()
 	loaded = false;
 
-	@state()
-	showCustomControls = false;
-
 	player: Hls | null = null;
 	videoElementRef: Ref<HTMLVideoElement> = createRef();
-	controlHideTimeout: number | null = null;
 
 	get hlsConfig(): Partial<HlsConfig> {
 		if (this.live) {
@@ -165,44 +161,11 @@ export class Video extends Component {
 		return this.videoElementRef.value || null;
 	}
 
-	private registerInteractionListeners() {
-		if (!this.videoElement) {
-			return;
-		}
-
-		this.videoElement.addEventListener('mousemove', () => {
-			this.showCustomControls = true;
-			if (this.videoElement?.paused) {
-				return;
-			}
-			this.controlHideTimeout && clearTimeout(this.controlHideTimeout);
-			this.controlHideTimeout = window.setTimeout(() => {
-				this.showCustomControls = false;
-			}, 3000);
-		});
-		this.videoElement.addEventListener('mouseleave', () => {
-			if (this.videoElement?.paused) {
-				return;
-			}
-			this.showCustomControls = false;
-		});
-		this.videoElement.addEventListener('play', () => {
-			navigator.mediaSession.playbackState = 'playing';
-		});
-		this.videoElement.addEventListener('pause', () => {
-			navigator.mediaSession.playbackState = 'paused';
-			this.controlHideTimeout && clearTimeout(this.controlHideTimeout);
-			this.showCustomControls = true;
-		});
-	}
-
 	protected firstUpdated(_changedProperties: PropertyValues): void {
 		super.firstUpdated(_changedProperties);
 		if (!this.videoElement) {
 			return;
 		}
-
-		this.registerInteractionListeners();
 
 		if (!this.hlsSource) {
 			this.error = 'No HLS source provided.';
@@ -255,20 +218,6 @@ export class Video extends Component {
 	render() {
 		const showStatus = !this.loaded || this.error;
 		return html`
-			<div class="control-bar ${this.showCustomControls ? 'visible' : 'hidden'}">
-				<button class="go-back" @click=${() => this.goBack()}>
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M400-240 160-480l240-240 56 58-142 142h486v80H314l142 142-56 58Z"/></svg>
-				</button>
-				${
-					this.live
-						? html`
-					<button class="fast-forward-live" @click=${() => this.goToLive()}>
-						Jump Live
-					</button>
-					`
-						: ''
-				}
-			</div>
 			<div class="status-wrapper ${showStatus ? 'visible' : 'hidden'}">
 				${this.error ? html`<div class="status-wrapper"><p>${this.error}</p></div>` : ''}
 				${!this.loaded && !this.error ? html`<div class="status-wrapper"><p>Loading stream...</p></div>` : ''}
