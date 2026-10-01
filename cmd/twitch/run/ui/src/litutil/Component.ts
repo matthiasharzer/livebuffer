@@ -39,7 +39,7 @@ h1, h2, h3, h4, h5, h6 {
   isolation: isolate;
 }
 
-a.watch-link {
+.simple-button {
 	text-decoration: none;
 	color: var(--color, #007bff);
 	font-weight: bold;
@@ -48,6 +48,7 @@ a.watch-link {
 	border-radius: 0.25rem;
 	transition: background-color 0.3s, color 0.3s;
 	white-space: nowrap;
+	background-color: transparent;
 
 	&:hover {
 		background-color: var(--color, #007bff);

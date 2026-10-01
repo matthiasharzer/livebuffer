@@ -243,7 +243,7 @@ export class BroadcasterTile extends Component {
 						<div class="actions">
 								${
 									this.latestStream && this.latestStream.state === 'live'
-										? html`<a class="watch-link" href="/live/${this.broadcaster.username}">Watch Live</a>`
+										? html`<a class="simple-button watch-link" href="/live/${this.broadcaster.username}">Watch Live</a>`
 										: ''
 								}
 						</div>
