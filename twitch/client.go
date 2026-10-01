@@ -97,7 +97,7 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 			streamTitle = stream.Title
 		}
 
-		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "title", streamTitle, "started_at", payload.StartedAt)
+		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "broadcaster_id", payload.BroadcasterUserID, "title", streamTitle, "started_at", payload.StartedAt)
 		c.onlineChannel.Publish(StreamOnlineState{
 			StreamID:            payload.ID,
 			IsOnline:            notification.Subscription.Type == "stream.online",

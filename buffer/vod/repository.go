@@ -65,6 +65,7 @@ func (r *Repository) ReadAllStreams() iter.Seq2[stream.Manager, error] {
 
 		for _, entry := range dirEntries {
 			if !entry.IsDir() {
+				logging.Warn("found non-directory entry in buffer directory (skipping)", "entry_name", entry.Name())
 				continue
 			}
 			streamID := entry.Name()
@@ -77,6 +78,7 @@ func (r *Repository) ReadAllStreams() iter.Seq2[stream.Manager, error] {
 				continue
 			}
 			if manager == nil {
+				logging.Warn("found directory that is not a stream directory (skipping)", "directory_name", entry.Name())
 				continue
 			}
 			if manager.StreamID() != entry.Name() {

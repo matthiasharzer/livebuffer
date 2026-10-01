@@ -100,7 +100,7 @@ func (m *Monitor) startRecording(event stream.WentLiveEvent) bool {
 }
 
 func (m *Monitor) wentLive(event stream.WentLiveEvent) {
-	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName)
+	logging.Info("stream went live, starting recording session", "username", event.BroadcasterUserName, "stream_id", event.StreamID)
 	m.mu.Lock()
 	success := m.startRecording(event)
 	m.mu.Unlock()

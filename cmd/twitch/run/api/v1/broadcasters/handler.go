@@ -31,6 +31,7 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 		for s := range streams {
 			broadcasterStreams, ok := streamsByBroadcaster[s.BroadcasterUserName]
 			if !ok {
+				logging.Warn("stream found for unknown broadcaster", "broadcaster", s.BroadcasterUserName, "stream_id", s.ID)
 				continue
 			}
 			streamsByBroadcaster[s.BroadcasterUserName] = append(broadcasterStreams, s)
@@ -40,6 +41,7 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 		for _, broadcasterName := range broadcasters {
 			streams, ok := streamsByBroadcaster[broadcasterName]
 			if !ok {
+				logging.Warn("stream disappeared for broadcaster", "broadcaster", broadcasterName)
 				continue
 			}
 
