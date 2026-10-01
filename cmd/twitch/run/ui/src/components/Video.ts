@@ -147,7 +147,6 @@ export class Video extends Component {
 			navigator.mediaSession.playbackState = 'paused';
 		});
 
-		// Optional: Seeking (if not a live stream)
 		navigator.mediaSession.setActionHandler('seekto', details => {
 			if (details.fastSeek && 'fastSeek' in video) {
 				video.fastSeek(details.seekTime || 0);
@@ -202,17 +201,6 @@ export class Video extends Component {
 
 	disconnectedCallback(): void {
 		this.player?.destroy();
-	}
-
-	goToLive() {
-		if (!this.videoElement) {
-			return;
-		}
-		this.videoElement.currentTime = this.videoElement.duration - 5;
-	}
-
-	goBack() {
-		window.history.back();
 	}
 
 	render() {
