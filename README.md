@@ -103,9 +103,7 @@ A stream returned by either `/api/v1/list` or `/api/v1/details/{streamID}` has t
 | `size_bytes`            | int    | The size of the stream in bytes.                                                        |
 
 #### UI
-livebuffer comes with a small UI to get an overview of the available broadcasters and their recorded streams, as well as a simple video player to watch the streams. The UI is available at the root of the REST API.
-
-At the moment, it is not possible to create clips via the UI. This is planned for a future release.
+livebuffer comes with a small UI to get an overview of the available broadcasters and their recorded streams, as well as a simple video player to watch the streams. Additionally, videos can be downloaded or clipped directly from the UI. The UI is available at the root of the REST API.
 
 ### `version` Command
 Print the version of the tool:
