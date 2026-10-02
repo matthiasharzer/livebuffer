@@ -3,6 +3,21 @@ import { Component } from '../litutil/Component.ts';
 
 export class Background extends Component {
 	static styles = css`
+		@keyframes pulse {
+			0% {
+				opacity: 0;
+			}
+			40% {
+				opacity: 1;
+			}
+			80% {
+				opacity: 0;
+			}
+			100% {
+				opacity: 0;
+			}
+		}
+
 		:host {
 			position: fixed;
 			--background: 	#121212;
@@ -17,18 +32,24 @@ export class Background extends Component {
 			overflow: hidden;
 		}
 
-		.dotted-overlay {
+		.background {
 			position: absolute;
-			top: -50%;
-  		left: -50%;
-			width: 200%;
-  		height: 200%;
-
+			top: -100%;
+			left: -100%;
+			width: 300%;
+			height: 300%;
 			transform: rotate(-45deg);
 
-			 --circle-diameter: 2px;
-			 --circle-spacing: 40px;
-			 --circle-color: color-mix(in srgb, var(--dots) 30%, black);
+			--circle-diameter: 2px;
+			--circle-spacing: 40px;
+
+		}
+
+		.dotted-overlay {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+
 			background : radial-gradient(
 				circle at
 						var(--circle-diameter)
@@ -38,11 +59,38 @@ export class Background extends Component {
 			)
 			0 0 / var(--circle-spacing) var(--circle-spacing);
 		}
+
+		.background .level-1 {
+			--circle-color: color-mix(in srgb, var(--dots) 30%, black);
+
+			opacity: 1;
+			animation: pulse 10s infinite;
+		}
+
+		.background .level-2 {
+			--circle-color: color-mix(in srgb, var(--primary-color) 70%, black);
+
+			transform: translate(20px, 20px);
+			opacity: 0;
+
+			animation: pulse 10s infinite;
+			animation-delay: 5s;
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.background .level-1,
+			.background .level-2 {
+				animation: none;
+			}
+		}
 	`;
 
 	render() {
 		return html`
-		<div class="dotted-overlay"></div>
+		<div class="background">
+			<div class="dotted-overlay level-1"></div>
+			<div class="dotted-overlay level-2"></div>
+		</div>
 		`;
 	}
 }
