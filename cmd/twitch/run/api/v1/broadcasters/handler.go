@@ -34,7 +34,6 @@ func Handler(director *buffer.Director) http.HandlerFunc {
 
 			broadcasterStreams, ok := streamsByBroadcaster[normalizedUsername]
 			if !ok {
-				logging.Warn("stream found for unknown broadcaster", "broadcaster", s.BroadcasterUserName, "stream_id", s.ID)
 				continue
 			}
 			streamsByBroadcaster[normalizedUsername] = append(broadcasterStreams, s)
