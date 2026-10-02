@@ -3,7 +3,7 @@ import { property, state } from 'lit/decorators.js';
 import { Component } from '../litutil/Component';
 import { formatDuration } from '../services/formatDuration';
 
-const DURATION_REGEX = /^(\d+h)*\s*([0-5]?[0-9]m)?\s*([0-5]?[0-9]s)?$/;
+const DURATION_REGEX = /^(\d+h)?\s*([0-5]?[0-9]m)?\s*([0-5]?[0-9]s)?$/;
 
 export class DurationInput extends Component {
 	static styles = css`
