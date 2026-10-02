@@ -147,8 +147,6 @@ export class ClipView extends Component {
 		end: true,
 	};
 
-	previewStartedAt: number | null = null;
-
 	get durationMs(): number | null {
 		if (!this.isDurationInputsValid) {
 			return null;
@@ -230,24 +228,9 @@ export class ClipView extends Component {
 			this.videoElement.pause();
 			return;
 		}
-		this.previewStartedAt = Date.now();
 		this.isClipPreview = true;
 		this.videoElement.currentTime = this.startMs / 1000;
 		this.videoElement.play();
-	}
-
-	cancelPreview() {
-		if (!this.isClipPreview) {
-			return;
-		}
-		const elapsed = Date.now() - (this.previewStartedAt || 0);
-		if (elapsed < 100) {
-			// Do not cancel preview, if the event was triggered by a click on the preview button itself
-			return;
-		}
-
-		this.isClipPreview = false;
-		this.previewStartedAt = null;
 	}
 
 	onDurationValidityChange(type: 'start' | 'end', event: CustomEvent<{ valid: boolean }>) {
@@ -263,7 +246,7 @@ export class ClipView extends Component {
 		const url = `/api/v1/video/${stream.id}/index.m3u8`;
 
 		return html`
-			<div class="clip-view" @click=${this.cancelPreview}>
+			<div class="clip-view">
 				<h1>Create a clip</h1>
 				<h2 title="${stream.title}">${stream.title}</h2>
 				<div class="container video-container">
@@ -277,6 +260,7 @@ export class ClipView extends Component {
 								<lb-duration-input
 									.valueMs=${this.startMs}
 									.maxValueMs=${stream.duration_milliseconds}
+									name="start"
 									@duration-change=${this.onDurationChangeStart}
 									@duration-validity-change=${(e: CustomEvent<{ valid: boolean }>) => this.onDurationValidityChange('start', e)}
 								></lb-duration-input>
@@ -289,6 +273,7 @@ export class ClipView extends Component {
 								<lb-duration-input
 									.valueMs=${this.endMs}
 									.maxValueMs=${stream.duration_milliseconds}
+									name="end"
 									@duration-change=${this.onDurationChangeEnd}
 									@duration-validity-change=${(e: CustomEvent<{ valid: boolean }>) => this.onDurationValidityChange('end', e)}
 								></lb-duration-input>
@@ -314,7 +299,7 @@ export class ClipView extends Component {
 							`
 							}
 						</button>
-						<a class="simple-button ${!this.isValid ? 'disabled' : ''}" href="${this.clipUrl}" download>
+						<a class="simple-button ${!this.isValid ? 'disabled' : ''}" href="${this.isValid ? this.clipUrl : null}" ?download=${this.isValid}>
 							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
 							Download
 						</a>

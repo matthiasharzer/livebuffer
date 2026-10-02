@@ -48,6 +48,9 @@ export class DurationInput extends Component {
 	@property({ type: Number })
 	maxValueMs: number | null = null;
 
+	@property()
+	name = 'duration';
+
 	@state()
 	valid: boolean = true;
 
@@ -127,7 +130,7 @@ export class DurationInput extends Component {
 	render() {
 		return html`
 			<input
-				name="duration"
+				.name=${this.name}
 				type="text"
 				part="input"
 				.value=${this.formattedValue}
