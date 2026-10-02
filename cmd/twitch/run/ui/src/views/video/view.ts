@@ -1,5 +1,4 @@
 import { Task } from '@lit/task';
-import type { HlsConfig } from 'hls.js';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { createRef, ref } from 'lit/directives/ref.js';
@@ -41,13 +40,6 @@ export class VideoView extends Component {
 		},
 	});
 
-	get hlsConfig(): Partial<HlsConfig> {
-		return {
-			autoStartLoad: true,
-			startPosition: 0,
-		};
-	}
-
 	render() {
 		if (!this.streamId) {
 			return html`<div class="status-wrapper"><p>Missing stream_id in the URL.</p></div>`;
@@ -61,7 +53,7 @@ export class VideoView extends Component {
 					if (!stream) {
 						return html`<div class="status-wrapper"><p>Stream not found.</p></div>`;
 					}
-					return html`<lb-video ${ref(this.videoRef)} .hlsSource="${url}" autoplay></lb-video>`;
+					return html`<lb-video ${ref(this.videoRef)} .title=${stream.title} .hlsSource="${url}" autoplay></lb-video>`;
 				},
 				error: e =>
 					html`<div class="status-wrapper"><p>Error loading stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,

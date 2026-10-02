@@ -55,8 +55,35 @@ export class StreamTile extends Component {
 			}
 
 			.actions {
+				display: flex;
+				gap: 0.5rem;
+				flex-shrink: 0;
+
 				a {
 					--color: var(--primary-reduced-color, #9146ff);
+				}
+
+				.download-button {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					padding: 0.25rem 0.5rem;
+					background-color: transparent;
+					border: none;
+					cursor: pointer;
+					height: 1.4rem;
+					flex-shrink: 0;
+
+					svg {
+						width: 1.4rem;
+						height: 1.4rem;
+						fill: #e3e3e3;
+						transition: fill 0.2s;
+					}
+
+					&:hover svg {
+						fill: var(--primary-reduced-color, #9146ff);
+					}
 				}
 			}
 		}
@@ -72,14 +99,6 @@ export class StreamTile extends Component {
 		return this.stream;
 	}
 
-	renderWatchLink() {
-		if (this.mustStream.state === 'live') {
-			return html`<a class="watch-link" href="/live/${this.mustStream.username}">Watch Live</a>`;
-		} else {
-			return html`<a class="watch-link" href="/video/${this.mustStream.id}">Watch Video</a>`;
-		}
-	}
-
 	render() {
 		if (!this.stream) {
 			return '';
@@ -91,7 +110,10 @@ export class StreamTile extends Component {
 					<p>${this.mustStream.state} · ${new Date(this.mustStream.started_at).toLocaleString()} · ${formatDuration(this.mustStream.duration_milliseconds)} ·  ${this.mustStream.size}</p>
 				</div>
 				<div class="actions">
-					${this.renderWatchLink()}
+					<a class="download-button" title="Download" href="/api/v1/download/${this.mustStream.id}" download>
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+					</a>
+					<a class="simple-button watch-link" href="/video/${this.mustStream.id}">Watch Now</a>
 				</div>
 			</div>
 		`;

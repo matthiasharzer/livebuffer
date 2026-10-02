@@ -37,28 +37,125 @@ export class Video extends Component {
 				display: none;
 			}
 		}
+
+		.control-bar {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			display: flex;
+			justify-content: space-between;
+			padding: 0.5rem;
+			z-index: 10;
+			opacity: 1;
+			transition: opacity 0.3s ease, display 0.3s ease;
+
+			&.hidden:not(:hover) {
+				opacity: 0;
+			}
+
+			button {
+				background-color: var(--background, #1e1e1e);
+				border: 1px solid var(--border-color, #333);
+
+				color: var(--text-color, #e3e3e3);
+				font-weight: 500;
+				font-size: 1rem;
+				cursor: pointer;
+				padding: 0.25rem 1rem;
+				border-radius: 4px;
+				transition: background-color 0.3s, transform 0.1s;
+
+
+				&:hover {
+					background-color: rgba(255, 255, 255, 0.2);
+				}
+
+				&.go-back {
+					&:hover {
+						transform: translateX(-2px);
+					}
+					background-color: transparent;
+					padding: 0.25rem ;
+					border: none;
+				}
+			}
+		}
 	`;
 
 	@property({ type: Boolean })
 	autoplay: boolean = false;
 
-	@property({ attribute: false })
-	hlsConfig?: Partial<HlsConfig>;
+	@property({ type: Boolean })
+	live = false;
 
 	@property({ attribute: false })
 	hlsSource: string | null = null;
 
+	@property({ type: String })
+	title = '';
+
 	@state()
 	enabled = true;
-
-	player: Hls | null = null;
-	videoElementRef: Ref<HTMLVideoElement> = createRef();
 
 	@state()
 	error: string | null = null;
 
 	@state()
 	loaded = false;
+
+	player: Hls | null = null;
+	videoElementRef: Ref<HTMLVideoElement> = createRef();
+
+	get hlsConfig(): Partial<HlsConfig> {
+		if (this.live) {
+			return {
+				autoStartLoad: true,
+				liveDurationInfinity: true,
+				startPosition: -1,
+				liveBackBufferLength: 0, // Keep memory usage low
+			};
+		}
+		return {
+			autoStartLoad: true,
+			startPosition: 0,
+		};
+	}
+
+	private setupMediaSession() {
+		if (!('navigator' in window) || !('mediaSession' in navigator)) {
+			return;
+		}
+		if (!this.videoElement) {
+			return;
+		}
+		const video = this.videoElement;
+		navigator.mediaSession.metadata = new MediaMetadata({
+			title: this.title || 'LiveBuffer Video',
+		});
+
+		navigator.mediaSession.setActionHandler('play', async () => {
+			try {
+				await video.play();
+				navigator.mediaSession.playbackState = 'playing';
+			} catch (err) {
+				console.error('Play failed:', err);
+			}
+		});
+
+		navigator.mediaSession.setActionHandler('pause', () => {
+			video.pause();
+			navigator.mediaSession.playbackState = 'paused';
+		});
+
+		navigator.mediaSession.setActionHandler('seekto', details => {
+			if (details.fastSeek && 'fastSeek' in video) {
+				video.fastSeek(details.seekTime || 0);
+			} else {
+				video.currentTime = details.seekTime || 0;
+			}
+		});
+	}
 
 	get videoElement(): HTMLVideoElement | null {
 		return this.videoElementRef.value || null;
@@ -69,6 +166,7 @@ export class Video extends Component {
 		if (!this.videoElement) {
 			return;
 		}
+
 		if (!this.hlsSource) {
 			this.error = 'No HLS source provided.';
 			return;
@@ -98,10 +196,17 @@ export class Video extends Component {
 				this.videoElement?.play();
 			}
 		});
+
+		this.setupMediaSession();
 	}
 
 	disconnectedCallback(): void {
+		super.disconnectedCallback();
 		this.player?.destroy();
+
+		navigator.mediaSession.setActionHandler('play', null);
+		navigator.mediaSession.setActionHandler('pause', null);
+		navigator.mediaSession.setActionHandler('seekto', null);
 	}
 
 	render() {
@@ -111,7 +216,7 @@ export class Video extends Component {
 				${this.error ? html`<div class="status-wrapper"><p>${this.error}</p></div>` : ''}
 				${!this.loaded && !this.error ? html`<div class="status-wrapper"><p>Loading stream...</p></div>` : ''}
 			</div>
-			<video ${ref(this.videoElementRef)} ?autoplay="${this.autoplay}" muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
+			<video ${ref(this.videoElementRef)} autopictureinpicture ?autoplay="${this.autoplay}" muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
 		`;
 	}
 }
