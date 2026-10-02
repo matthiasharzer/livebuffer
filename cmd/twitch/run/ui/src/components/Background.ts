@@ -19,10 +19,10 @@ export class Background extends Component {
 
 		.dotted-overlay {
 			position: absolute;
-			top: -50%;
-  		left: -50%;
-			width: 200%;
-  		height: 200%;
+			top: -100%;
+  		left: -100%;
+			width: 300%;
+  		height: 300%;
 
 			transform: rotate(-45deg);
 
