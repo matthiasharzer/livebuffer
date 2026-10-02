@@ -40,10 +40,13 @@ export class DurationInput extends Component {
 	`;
 
 	@property({ type: Number, attribute: 'value-ms' })
-	valueMs: number = 0;
+	valueMs: number | null = 0;
 
 	@property({ type: Boolean })
 	disabled: boolean = false;
+
+	@property({ type: Number })
+	maxValueMs: number | null = null;
 
 	@state()
 	valid: boolean = true;
@@ -51,7 +54,20 @@ export class DurationInput extends Component {
 	valueToSubmit: number = 0;
 
 	get formattedValue(): string {
+		if (this.valueMs === null) {
+			return '—';
+		}
 		return formatDuration(this.valueMs);
+	}
+
+	isValid(value: number): boolean {
+		if (value < 0) {
+			return false;
+		}
+		if (this.maxValueMs !== null && value > this.maxValueMs) {
+			return false;
+		}
+		return true;
 	}
 
 	onInput(event: InputEvent) {
@@ -60,13 +76,13 @@ export class DurationInput extends Component {
 
 		if (value === '') {
 			this.valueToSubmit = 0;
-			this.valid = true;
+			this.setValid(true);
 			return;
 		}
 
 		const match = DURATION_REGEX.exec(value);
 		if (!match) {
-			this.valid = false;
+			this.setValid(false);
 			return;
 		}
 
@@ -79,13 +95,13 @@ export class DurationInput extends Component {
 		totalMs += minutes * 60 * 1000;
 		totalMs += seconds * 1000;
 
-		if (totalMs < 0) {
-			this.valid = false;
+		if (!this.isValid(totalMs)) {
+			this.setValid(false);
 			return;
 		}
 
 		this.valueToSubmit = totalMs;
-		this.valid = true;
+		this.setValid(true);
 	}
 
 	submit() {
@@ -95,6 +111,15 @@ export class DurationInput extends Component {
 		this.dispatch(
 			'duration-change',
 			{ value: this.valueToSubmit },
+			{ bubbles: true, composed: true },
+		);
+	}
+
+	setValid(isValid: boolean) {
+		this.valid = isValid;
+		this.dispatch(
+			'duration-validity-change',
+			{ valid: isValid },
 			{ bubbles: true, composed: true },
 		);
 	}

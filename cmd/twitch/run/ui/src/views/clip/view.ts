@@ -141,14 +141,28 @@ export class ClipView extends Component {
 	@query('lb-video')
 	videoElement!: Video;
 
+	@state()
+	durationValid = {
+		start: true,
+		end: true,
+	};
+
 	previewStartedAt: number | null = null;
 
-	get durationMs(): number {
+	get durationMs(): number | null {
+		if (!this.isDurationInputsValid) {
+			return null;
+		}
+
 		return this.endMs - this.startMs;
 	}
 
+	get isDurationInputsValid(): boolean {
+		return this.durationValid.start && this.durationValid.end;
+	}
+
 	get isValid(): boolean {
-		return this.startMs >= 0 && this.endMs > this.startMs;
+		return this.startMs >= 0 && this.endMs > this.startMs && this.isDurationInputsValid;
 	}
 
 	get clipUrl(): string | null {
@@ -236,6 +250,11 @@ export class ClipView extends Component {
 		this.previewStartedAt = null;
 	}
 
+	onDurationValidityChange(type: 'start' | 'end', event: CustomEvent<{ valid: boolean }>) {
+		this.durationValid[type] = event.detail.valid;
+		this.requestUpdate();
+	}
+
 	renderView(stream: StreamInfo) {
 		if (!this.clipUrl) {
 			return '';
@@ -255,14 +274,24 @@ export class ClipView extends Component {
 						<div class="container chip clip-start">
 							<h3>Start</h3>
 							<div class="input-wrapper">
-								<lb-duration-input .valueMs=${this.startMs} @duration-change=${this.onDurationChangeStart}></lb-duration-input>
+								<lb-duration-input
+									.valueMs=${this.startMs}
+									.maxValueMs=${stream.duration_milliseconds}
+									@duration-change=${this.onDurationChangeStart}
+									@duration-validity-change=${(e: CustomEvent<{ valid: boolean }>) => this.onDurationValidityChange('start', e)}
+								></lb-duration-input>
 								<button @click=${this.setStartToNow}>Set to now</button>
 							</div>
 						</div>
 						<div class="container chip clip-end">
 							<h3>End</h3>
 							<div class="input-wrapper">
-								<lb-duration-input .valueMs=${this.endMs} @duration-change=${this.onDurationChangeEnd}></lb-duration-input>
+								<lb-duration-input
+									.valueMs=${this.endMs}
+									.maxValueMs=${stream.duration_milliseconds}
+									@duration-change=${this.onDurationChangeEnd}
+									@duration-validity-change=${(e: CustomEvent<{ valid: boolean }>) => this.onDurationValidityChange('end', e)}
+								></lb-duration-input>
 								<button @click=${this.setEndToNow}>Set to now</button>
 							</div>
 						</div>
