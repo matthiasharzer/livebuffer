@@ -4,6 +4,8 @@ import './views/root/view.ts';
 import './views/live/view.ts';
 import './views/notfound/view.ts';
 import './views/video/view.ts';
+import './views/clip/view.ts';
 import './components/Background.ts';
 import './components/BroadcasterTile.ts';
 import './components/StreamTile.ts';
+import './components/DurationInput.ts';

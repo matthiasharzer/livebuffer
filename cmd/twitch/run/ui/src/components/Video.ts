@@ -7,7 +7,10 @@ import { Component } from '../litutil/Component';
 export class Video extends Component {
 	static styles = css`
 		:host {
-			display: contents;
+			display: block;
+			width: 100%;
+			height: 100%;
+			position: relative;
 		}
 
 		video {
@@ -107,6 +110,16 @@ export class Video extends Component {
 	player: Hls | null = null;
 	videoElementRef: Ref<HTMLVideoElement> = createRef();
 
+	get currentTime(): number {
+		return this.videoElement?.currentTime || 0;
+	}
+
+	set currentTime(value: number) {
+		if (this.videoElement) {
+			this.videoElement.currentTime = value;
+		}
+	}
+
 	get hlsConfig(): Partial<HlsConfig> {
 		if (this.live) {
 			return {
@@ -120,6 +133,14 @@ export class Video extends Component {
 			autoStartLoad: true,
 			startPosition: 0,
 		};
+	}
+
+	play() {
+		return this.videoElement?.play();
+	}
+
+	pause() {
+		this.videoElement?.pause();
 	}
 
 	private setupMediaSession() {
@@ -209,6 +230,10 @@ export class Video extends Component {
 		navigator.mediaSession.setActionHandler('seekto', null);
 	}
 
+	bubbleEvent(eventName: string) {
+		this.dispatch(eventName, null, { bubbles: true, composed: true });
+	}
+
 	render() {
 		const showStatus = !this.loaded || this.error;
 		return html`
@@ -216,7 +241,7 @@ export class Video extends Component {
 				${this.error ? html`<div class="status-wrapper"><p>${this.error}</p></div>` : ''}
 				${!this.loaded && !this.error ? html`<div class="status-wrapper"><p>Loading stream...</p></div>` : ''}
 			</div>
-			<video ${ref(this.videoElementRef)} autopictureinpicture ?autoplay="${this.autoplay}" muted controls playsinline class="${this.loaded ? 'loaded' : ''}"></video>
+			<video ${ref(this.videoElementRef)} autopictureinpicture ?autoplay="${this.autoplay}" muted controls playsinline class="${this.loaded ? 'loaded' : ''}" @timeupdate=${() => this.bubbleEvent('timeupdate')}></video>
 		`;
 	}
 }

@@ -1,25 +1,8 @@
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { Component } from '../litutil/Component';
+import { formatDuration } from '../services/formatDuration';
 import type { StreamInfo } from '../services/streams';
-
-const formatDuration = (milliseconds: number): string => {
-	const totalSeconds = Math.floor(milliseconds / 1000);
-	const hours = Math.floor(totalSeconds / 3600);
-	const minutes = Math.floor((totalSeconds % 3600) / 60);
-	const seconds = totalSeconds % 60;
-
-	const parts = [];
-	if (hours > 0) {
-		parts.push(`${hours}h`);
-	}
-	if (minutes > 0 || hours > 0) {
-		parts.push(`${minutes}m`);
-	}
-	parts.push(`${seconds}s`);
-
-	return parts.join(' ');
-};
 
 export class StreamTile extends Component {
 	static styles = css`

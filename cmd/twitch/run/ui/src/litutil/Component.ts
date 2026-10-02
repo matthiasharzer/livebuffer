@@ -41,19 +41,30 @@ h1, h2, h3, h4, h5, h6 {
 
 .simple-button {
 	text-decoration: none;
-	color: var(--color, #007bff);
+	color: var(--color, var(--primary-reduced-color, #cd79fd));
 	font-weight: bold;
 	padding: 0.25rem 0.5rem;
-	border: 1px solid var(--color, #007bff);
+	border: 1px solid var(--color, var(--primary-reduced-color, #cd79fd));
 	border-radius: 0.25rem;
 	transition: background-color 0.3s, color 0.3s;
 	white-space: nowrap;
 	background-color: transparent;
 
-	&:hover {
-		background-color: var(--color, #007bff);
+	&:disabled, &.disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	&:hover:not(:disabled):not(.disabled) {
+		background-color: var(--color, var(--primary-reduced-color, #cd79fd));
 		color: white;
 	}
+}
+
+.container {
+	border-radius: 8px;
+	background-color: var(--background, #1e1e1e);
+	border: 1px solid var(--border-color, #333);
 }
 `;
 
