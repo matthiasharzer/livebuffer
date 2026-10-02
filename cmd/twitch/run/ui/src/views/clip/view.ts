@@ -81,6 +81,7 @@ export class ClipView extends Component {
 
 				button {
 					margin-top: 0.1rem;
+					padding: 0;
 					background-color: transparent;
 					color: var(--primary-reduced-color, #cd79fd);
 					border: none;
@@ -113,15 +114,18 @@ export class ClipView extends Component {
 				justify-content: center;
 				cursor: pointer;
 				gap: 0.5rem;
-				/*
-				padding: 0.5rem 1rem;
-				background-color: var(--background, #1e1e1e);
-				border: 1px solid var(--border-color, #333);
-				color: var(--text-color, #e3e3e3);
-				font-weight: 500;
-				font-size: 1rem;
-				border-radius: 4px;
-				text-decoration: none; */
+			}
+		}
+
+		.format-options {
+			display: flex;
+			flex-direction: column;
+			gap: 0.5rem;
+
+			p {
+				color: #aaa;
+				font-size: 0.875rem;
+				font: monospace;
 			}
 		}
 	`;
@@ -238,6 +242,14 @@ export class ClipView extends Component {
 		this.requestUpdate();
 	}
 
+	renderDurationFormatOptions() {
+		return html`
+			<div class="format-options">
+				<p>??h ??m ??s / hh:mm:ss</p>
+			</div>
+		`;
+	}
+
 	renderView(stream: StreamInfo) {
 		if (!this.clipUrl) {
 			return '';
@@ -266,6 +278,7 @@ export class ClipView extends Component {
 								></lb-duration-input>
 								<button @click=${this.setStartToNow}>Set to now</button>
 							</div>
+							${this.renderDurationFormatOptions()}
 						</div>
 						<div class="container chip clip-end">
 							<h3>End</h3>
@@ -279,6 +292,7 @@ export class ClipView extends Component {
 								></lb-duration-input>
 								<button @click=${this.setEndToNow}>Set to now</button>
 							</div>
+							${this.renderDurationFormatOptions()}
 						</div>
 						<div class="container chip clip-duration">
 							<h3>Duration</h3>

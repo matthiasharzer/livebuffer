@@ -4,6 +4,7 @@ import { Component } from '../litutil/Component';
 import { formatDuration } from '../services/formatDuration';
 
 const DURATION_REGEX = /^(\d+h)?\s*([0-5]?[0-9]m)?\s*([0-5]?[0-9]s)?$/;
+const DURATION_REGEX_HMS = /^(\d+):([0-5]?[0-9]):([0-5]?[0-9])$/;
 
 export class DurationInput extends Component {
 	static styles = css`
@@ -73,6 +74,34 @@ export class DurationInput extends Component {
 		return true;
 	}
 
+	parseDuration(match: RegExpExecArray): number | null {
+		let totalMs = 0;
+		const hours = match[1] ? parseInt(match[1], 10) : 0;
+		const minutes = match[2] ? parseInt(match[2], 10) : 0;
+		const seconds = match[3] ? parseInt(match[3], 10) : 0;
+
+		totalMs += hours * 60 * 60 * 1000;
+		totalMs += minutes * 60 * 1000;
+		totalMs += seconds * 1000;
+		return totalMs;
+	}
+
+	parseDurationHMS(match: RegExpExecArray): number | null {
+		const hours = parseInt(match[1], 10);
+		const minutes = parseInt(match[2], 10);
+		const seconds = parseInt(match[3], 10);
+
+		if (minutes > 59 || seconds > 59) {
+			return null;
+		}
+
+		let totalMs = 0;
+		totalMs += hours * 60 * 60 * 1000;
+		totalMs += minutes * 60 * 1000;
+		totalMs += seconds * 1000;
+		return totalMs;
+	}
+
 	onInput(event: InputEvent) {
 		const input = event.target as HTMLInputElement;
 		const value = input.value.trim();
@@ -83,20 +112,23 @@ export class DurationInput extends Component {
 			return;
 		}
 
-		const match = DURATION_REGEX.exec(value);
-		if (!match) {
+		const matchDuration = DURATION_REGEX.exec(value);
+		const matchDurationHMS = DURATION_REGEX_HMS.exec(value);
+
+		let totalMs: number | null = null;
+		if (matchDuration) {
+			totalMs = this.parseDuration(matchDuration);
+		} else if (matchDurationHMS) {
+			totalMs = this.parseDurationHMS(matchDurationHMS);
+		} else {
 			this.setValid(false);
 			return;
 		}
 
-		let totalMs = 0;
-		const hours = match[1] ? parseInt(match[1], 10) : 0;
-		const minutes = match[2] ? parseInt(match[2], 10) : 0;
-		const seconds = match[3] ? parseInt(match[3], 10) : 0;
-
-		totalMs += hours * 60 * 60 * 1000;
-		totalMs += minutes * 60 * 1000;
-		totalMs += seconds * 1000;
+		if (totalMs === null) {
+			this.setValid(false);
+			return;
+		}
 
 		if (!this.isValid(totalMs)) {
 			this.setValid(false);
