@@ -234,7 +234,10 @@ export class ClipView extends Component {
 		}
 		this.isClipPreview = true;
 		this.videoElement.currentTime = this.startMs / 1000;
-		this.videoElement.play();
+		this.videoElement.play()?.catch(e => {
+			console.error('Error playing video:', e);
+			this.isClipPreview = false;
+		});
 	}
 
 	onDurationValidityChange(type: 'start' | 'end', event: CustomEvent<{ valid: boolean }>) {

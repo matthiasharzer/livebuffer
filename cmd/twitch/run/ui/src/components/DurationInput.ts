@@ -40,8 +40,18 @@ export class DurationInput extends Component {
 		}
 	`;
 
+	private _valueMs: number | null = 0;
+
 	@property({ type: Number, attribute: 'value-ms' })
-	valueMs: number | null = 0;
+	set valueMs(value: number | null) {
+		this._valueMs = value;
+		this.valueToSubmit = value ?? 0;
+		this.setValid(this.isValid(this.valueToSubmit));
+	}
+
+	get valueMs(): number | null {
+		return this._valueMs;
+	}
 
 	@property({ type: Boolean })
 	disabled: boolean = false;
