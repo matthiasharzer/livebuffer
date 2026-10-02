@@ -259,6 +259,10 @@ export class ClipView extends Component {
 
 		return html`
 			<div class="clip-view">
+				<a href="/" class="back-button">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M400-240 160-480l240-240 56 58-142 142h486v80H314l142 142-56 58Z"/></svg>
+					Go back
+				</a>
 				<h1>Create a clip</h1>
 				<h2 title="${stream.title}">${stream.title}</h2>
 				<div class="container video-container">

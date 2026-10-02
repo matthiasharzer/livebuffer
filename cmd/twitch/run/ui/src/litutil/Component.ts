@@ -39,6 +39,19 @@ h1, h2, h3, h4, h5, h6 {
   isolation: isolate;
 }
 
+.back-button {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: var(--text-reduced-color, #aaa);
+	text-decoration: none;
+	transition: color 0.3s;
+
+	&:hover {
+		color: var(--primary-reduced-color, #cd79fd);
+	}
+}
+
 .simple-button {
 	text-decoration: none;
 	color: var(--color, var(--primary-reduced-color, #cd79fd));
