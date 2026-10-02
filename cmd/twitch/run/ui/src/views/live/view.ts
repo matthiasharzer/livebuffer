@@ -1,5 +1,4 @@
 import { Task } from '@lit/task';
-import type { HlsConfig } from 'hls.js';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { Component } from '../../litutil/Component';
@@ -38,15 +37,6 @@ export class LiveView extends Component {
 			return fetchLiveStream(username || '');
 		},
 	});
-
-	get hlsConfig(): Partial<HlsConfig> {
-		return {
-			autoStartLoad: true,
-			startPosition: -1,
-			liveDurationInfinity: true,
-			liveBackBufferLength: 0, // Keep memory usage low
-		};
-	}
 
 	render() {
 		if (!this.username) {
