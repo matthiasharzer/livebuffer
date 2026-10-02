@@ -22,7 +22,7 @@ export class RootView extends Component {
 			flex-direction: column;
 
 			width: 100%;
-			max-width: 600px;
+			max-width: 700px;
 
 			h1 {
 				width: fit-content

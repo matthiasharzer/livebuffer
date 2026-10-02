@@ -37,6 +37,10 @@ export class App extends Component {
 			render: ({ stream_id }) =>
 				html`<lb-video-view .streamId=${stream_id ?? null}></lb-video-view>`,
 		},
+		{
+			path: '/clip/:stream_id',
+			render: ({ stream_id }) => html`<lb-clip-view .streamId=${stream_id ?? null}></lb-clip-view>`,
+		},
 		{ path: '/*', render: () => html`<lb-not-found-view></lb-not-found-view>` },
 	]);
 

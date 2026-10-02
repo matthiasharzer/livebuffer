@@ -1,8 +1,6 @@
 import { Task } from '@lit/task';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
-import { createRef, ref } from 'lit/directives/ref.js';
-import type { Video } from '../../components/Video';
 import { Component } from '../../litutil/Component';
 import { fetchStream, type StreamInfo } from '../../services/streams';
 
@@ -28,8 +26,6 @@ export class VideoView extends Component {
 	@property({ attribute: false })
 	streamId: string | null = null;
 
-	videoRef = createRef<Video>();
-
 	private _streamTask = new Task(this, {
 		args: () => [this.streamId],
 		task: async ([streamId]) => {
@@ -53,7 +49,7 @@ export class VideoView extends Component {
 					if (!stream) {
 						return html`<div class="status-wrapper"><p>Stream not found.</p></div>`;
 					}
-					return html`<lb-video ${ref(this.videoRef)} .title=${stream.title} .hlsSource="${url}" autoplay></lb-video>`;
+					return html`<lb-video .title=${stream.title} .hlsSource="${url}" autoplay></lb-video>`;
 				},
 				error: e =>
 					html`<div class="status-wrapper"><p>Error loading stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
