@@ -172,10 +172,10 @@ export class BroadcasterTile extends Component {
 	get lastLiveText() {
 		const latestStream = this.latestStream;
 		if (!latestStream) {
-			return 'never';
+			return 'never live';
 		}
 		if (latestStream.state === 'live') {
-			return 'right now';
+			return 'live right now';
 		}
 		const startedAtMs = new Date(latestStream.started_at).getTime();
 		const lastLiveMs = startedAtMs + latestStream.duration_milliseconds;
@@ -184,17 +184,17 @@ export class BroadcasterTile extends Component {
 		const diffMs = now.getTime() - lastLiveMs;
 		const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 		if (diffDays > 0) {
-			return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+			return `live ${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
 		}
 		const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
 		if (diffHours > 0) {
-			return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+			return `live ${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
 		}
 		const diffMinutes = Math.floor(diffMs / (1000 * 60));
 		if (diffMinutes > 0) {
-			return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+			return `live ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
 		}
-		return 'just now';
+		return 'live just now';
 	}
 
 	get liveBubble() {
@@ -238,7 +238,7 @@ export class BroadcasterTile extends Component {
 								<h3>${this.broadcaster.username}</h3>
 									${this.liveBubble}
 							</div>
-							<p class="description">${this.streamsText} · live ${this.lastLiveText}</p>
+							<p class="description">${this.streamsText} · ${this.lastLiveText}</p>
 						</div>
 						<div class="actions">
 								${

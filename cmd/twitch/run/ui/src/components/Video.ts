@@ -111,6 +111,7 @@ export class Video extends Component {
 		if (this.live) {
 			return {
 				autoStartLoad: true,
+				liveDurationInfinity: true,
 				startPosition: -1,
 				liveBackBufferLength: 0, // Keep memory usage low
 			};
@@ -200,7 +201,12 @@ export class Video extends Component {
 	}
 
 	disconnectedCallback(): void {
+		super.disconnectedCallback();
 		this.player?.destroy();
+
+		navigator.mediaSession.setActionHandler('play', null);
+		navigator.mediaSession.setActionHandler('pause', null);
+		navigator.mediaSession.setActionHandler('seekto', null);
 	}
 
 	render() {

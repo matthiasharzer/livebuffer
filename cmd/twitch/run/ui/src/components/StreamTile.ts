@@ -99,16 +99,6 @@ export class StreamTile extends Component {
 		return this.stream;
 	}
 
-	download() {
-		const url = `/api/v1/video/${this.mustStream.id}/download`;
-		const link = document.createElement('a');
-		link.href = url;
-		link.download = `${this.mustStream.title}.mp4`;
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-	}
-
 	render() {
 		if (!this.stream) {
 			return '';
