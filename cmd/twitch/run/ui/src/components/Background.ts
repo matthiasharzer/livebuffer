@@ -63,6 +63,7 @@ export class Background extends Component {
 		.background .level-1 {
 			--circle-color: color-mix(in srgb, var(--dots) 30%, black);
 
+			opacity: 1;
 			animation: pulse 10s infinite;
 		}
 
@@ -74,6 +75,13 @@ export class Background extends Component {
 
 			animation: pulse 10s infinite;
 			animation-delay: 5s;
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.background .level-1,
+			.background .level-2 {
+				animation: none;
+			}
 		}
 	`;
 
