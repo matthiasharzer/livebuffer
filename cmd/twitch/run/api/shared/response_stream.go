@@ -20,9 +20,13 @@ type ResponseStream struct {
 }
 
 func ResponseStreamFromDetails(details stream.Details) ResponseStream {
+	title := details.Title
+	if title == "" {
+		title = "unknown title"
+	}
 	return ResponseStream{
 		ID:                   details.ID,
-		Title:                details.Title,
+		Title:                title,
 		Size:                 humanize.Bytes(uint64(details.Size)),
 		SizeBytes:            details.Size,
 		Duration:             details.Duration.String(),

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/matthiasharzer/livebuffer/hls"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/stream"
@@ -72,7 +73,11 @@ func (m *Monitor) onlineStateChanged(state twitch.StreamOnlineState) {
 			StartedAt:            startedAt,
 		})
 	} else {
-		m.wentOffline()
+		m.wentOffline(stream.WentOfflineEvent{
+			StreamID:             state.StreamID,
+			Title:                state.Title,
+			BroadcasterUserLogin: state.BroadcasterUserLogin,
+		})
 	}
 }
 
@@ -113,24 +118,60 @@ func (m *Monitor) wentLive(event stream.WentLiveEvent) {
 	logging.Info("started recording session", "username", event.BroadcasterUserLogin, "stream_id", event.StreamID)
 }
 
-func (m *Monitor) wentOffline() {
+func (m *Monitor) wentOffline(event stream.WentOfflineEvent) {
 	logging.Info("stream went offline, stopping recording", "username", m.broadcasterUserName)
 	m.mu.Lock()
 	m.stopRecording()
+	m.supplementStreamMetadata(event)
 	m.mu.Unlock()
 
 	m.recordingStateChannel.Publish(RecordingStateStopped)
 	logging.Info("stopped recording session", "username", m.broadcasterUserName)
 }
 
-func (m *Monitor) stopRecording() {
-	if m.liveRecordingSession != nil {
-		err := m.liveRecordingSession.Close()
+func (m *Monitor) supplementStreamMetadata(event stream.WentOfflineEvent) {
+	streamDirectory := m.streamDirectory(event.StreamID)
+	var err error
+
+	if event.Title != "" {
+		err = stream.UpdateMetadata(streamDirectory, func(meta *stream.Metadata) error {
+			meta.Title = event.Title
+			return nil
+		})
 		if err != nil {
-			logging.Error("failed to close recording session", "error", err)
+			logging.Error("failed to update title", "error", err)
 		}
-		m.liveRecordingSession = nil
 	}
+
+	hlsInfo, err := hls.Stat(stream.FilesDirectory(streamDirectory))
+	if err != nil {
+		logging.Warn("failed to stat hls directory", "error", err)
+		return
+	}
+
+	err = stream.UpdateMetadata(streamDirectory, func(meta *stream.Metadata) error {
+		meta.Details = &stream.MetadataDetails{
+			Duration: hlsInfo.Duration,
+			Size:     hlsInfo.Size,
+		}
+		return nil
+	})
+	if err != nil {
+		logging.Warn("failed to update metadata with hls info", "error", err)
+	}
+}
+
+func (m *Monitor) stopRecording() {
+	if m.liveRecordingSession == nil {
+		logging.Warn("received went offline event while not recording (ignoring)")
+		return
+	}
+
+	err := m.liveRecordingSession.Close()
+	if err != nil {
+		logging.Error("failed to close recording session", "error", err)
+	}
+	m.liveRecordingSession = nil
 }
 
 func (m *Monitor) RecordingStateChannel() observer.ReadonlyChannel[RecordingState] {

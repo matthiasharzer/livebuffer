@@ -8,3 +8,9 @@ type WentLiveEvent struct {
 	BroadcasterUserLogin string
 	StartedAt            time.Time
 }
+
+type WentOfflineEvent struct {
+	StreamID             string
+	Title                string
+	BroadcasterUserLogin string
+}

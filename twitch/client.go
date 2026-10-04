@@ -85,18 +85,24 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 			// maybe another twitch client is responsible for this -> ignore
 			return
 		}
+
+		streamTitle := ""
 		stream, err := c.getCurrentUserStream()
 		if err != nil {
-			logging.Warn("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
+			logging.Warn("failed to get current user stream for event", "type", notification.Subscription.Type, "error", err)
 		}
-		if stream == nil {
-			logging.Warn("stream not found for event", "type", notification.Subscription.Type)
+		if stream != nil && stream.ID == payload.ID {
+			streamTitle = stream.Title
+		} else {
+			vod, err := c.getVideoByID(payload.ID)
+			if err != nil {
+				logging.Warn("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
+			}
+			if vod != nil {
+				streamTitle = vod.Title
+			}
 		}
 
-		streamTitle := "unknown"
-		if stream != nil {
-			streamTitle = stream.Title
-		}
 		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "broadcaster_id", payload.BroadcasterUserID, "title", streamTitle, "started_at", payload.StartedAt)
 		c.onlineChannel.Publish(StreamOnlineState{
 			StreamID:             payload.ID,
@@ -129,6 +135,24 @@ func (c *Client) HandleInitialStreamState() error {
 	})
 
 	return nil
+}
+
+func (c *Client) getVideoByID(streamID string) (*helix.Video, error) {
+	response, err := c.helixClient.GetVideos(&helix.VideosParams{
+		UserID: c.userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get videos: %w", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get videos: status code %d", response.StatusCode)
+	}
+	for _, video := range response.Data.Videos {
+		if video.StreamID == streamID {
+			return &video, nil
+		}
+	}
+	return nil, nil
 }
 
 func (c *Client) getCurrentUserStream() (*helix.Stream, error) {
