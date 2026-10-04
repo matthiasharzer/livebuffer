@@ -91,7 +91,7 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 		if err != nil {
 			logging.Warn("failed to get current user stream for event", "type", notification.Subscription.Type, "error", err)
 		}
-		if stream != nil {
+		if stream != nil && stream.ID == payload.ID {
 			streamTitle = stream.Title
 		} else {
 			vod, err := c.getVideoByID(payload.ID)
