@@ -128,6 +128,17 @@ func (c *Client) HandleInitialStreamState() error {
 		StartedAt:            &stream.StartedAt,
 	})
 
+	go func() {
+		time.Sleep(10 * time.Second)
+		c.onlineChannel.Publish(StreamOnlineState{
+			StreamID:             stream.ID,
+			IsOnline:             false,
+			BroadcasterUserLogin: c.username,
+			Title:                stream.Title,
+			StartedAt:            &stream.StartedAt,
+		})
+	}()
+
 	return nil
 }
 

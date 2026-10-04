@@ -5,23 +5,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
+
+	"github.com/matthiasharzer/livebuffer/util/mutexutil"
 )
 
-var metaMutex = make(map[string]*sync.RWMutex)
-var masterMu = &sync.RWMutex{}
+var mappedMutex = mutexutil.NewMappedMutex()
 
-func getMutex(streamDir string) *sync.RWMutex {
-	masterMu.Lock()
-	defer masterMu.Unlock()
-
-	manager, exists := metaMutex[streamDir]
-	if !exists {
-		manager = &sync.RWMutex{}
-		metaMutex[streamDir] = manager
+func lock(streamDir string) func() {
+	mu, cleanupFunc := mappedMutex.GetMutex(streamDir)
+	mu.Lock()
+	return func() {
+		mu.Unlock()
+		cleanupFunc()
 	}
-	return manager
 }
 
 const filesDirectory = "stream"
@@ -48,11 +45,7 @@ type Metadata struct {
 	Details             *MetadataDetails `json:"details,omitempty"`
 }
 
-func WriteMetadata(streamDir string, metadata Metadata) error {
-	mu := getMutex(streamDir)
-	mu.Lock()
-	defer mu.Unlock()
-
+func writeMetadata(streamDir string, metadata Metadata) error {
 	metadataFile := MetadataFile(streamDir)
 	data, err := json.Marshal(metadata)
 	if err != nil {
@@ -67,11 +60,7 @@ func WriteMetadata(streamDir string, metadata Metadata) error {
 	return nil
 }
 
-func ReadMetadata(streamDir string) (Metadata, error) {
-	mu := getMutex(streamDir)
-	mu.RLock()
-	defer mu.RUnlock()
-
+func readMetadata(streamDir string) (Metadata, error) {
 	metadataFile := MetadataFile(streamDir)
 	data, err := os.ReadFile(metadataFile)
 	if err != nil {
@@ -87,12 +76,8 @@ func ReadMetadata(streamDir string) (Metadata, error) {
 	return metadata, nil
 }
 
-func UpdateMetadata(streamDir string, updateFunc func(*Metadata) error) error {
-	mu := getMutex(streamDir)
-	mu.Lock()
-	defer mu.Unlock()
-
-	metadata, err := ReadMetadata(streamDir)
+func updateMetadata(streamDir string, updateFunc func(*Metadata) error) error {
+	metadata, err := readMetadata(streamDir)
 	if err != nil {
 		return fmt.Errorf("failed to read metadata: %w", err)
 	}
@@ -102,7 +87,7 @@ func UpdateMetadata(streamDir string, updateFunc func(*Metadata) error) error {
 		return fmt.Errorf("failed to update metadata: %w", err)
 	}
 
-	err = WriteMetadata(streamDir, metadata)
+	err = writeMetadata(streamDir, metadata)
 	if err != nil {
 		return fmt.Errorf("failed to write updated metadata: %w", err)
 	}
@@ -110,10 +95,30 @@ func UpdateMetadata(streamDir string, updateFunc func(*Metadata) error) error {
 	return nil
 }
 
+func WriteMetadata(streamDir string, metadata Metadata) error {
+	unlock := lock(streamDir)
+	defer unlock()
+
+	return writeMetadata(streamDir, metadata)
+}
+
+func ReadMetadata(streamDir string) (Metadata, error) {
+	unlock := lock(streamDir)
+	defer unlock()
+
+	return readMetadata(streamDir)
+}
+
+func UpdateMetadata(streamDir string, updateFunc func(*Metadata) error) error {
+	unlock := lock(streamDir)
+	defer unlock()
+
+	return updateMetadata(streamDir, updateFunc)
+}
+
 func IsStreamDirectory(streamDir string) bool {
-	mu := getMutex(streamDir)
-	mu.Lock()
-	defer mu.Unlock()
+	unlock := lock(streamDir)
+	defer unlock()
 
 	metadataFile := MetadataFile(streamDir)
 	info, err := os.Stat(metadataFile)
