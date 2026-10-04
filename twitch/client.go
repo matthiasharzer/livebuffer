@@ -133,18 +133,20 @@ func (c *Client) HandleInitialStreamState() error {
 
 func (c *Client) getVideoByID(streamID string) (*helix.Video, error) {
 	response, err := c.helixClient.GetVideos(&helix.VideosParams{
-		IDs: []string{streamID},
+		UserID: c.userID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get videos for stream: %w", err)
+		return nil, fmt.Errorf("failed to get videos: %w", err)
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get videos for stream: status code %d", response.StatusCode)
+		return nil, fmt.Errorf("failed to get videos: status code %d", response.StatusCode)
 	}
-	if len(response.Data.Videos) == 0 {
-		return nil, nil
+	for _, video := range response.Data.Videos {
+		if video.StreamID == streamID {
+			return &video, nil
+		}
 	}
-	return &response.Data.Videos[0], nil
+	return nil, nil
 }
 
 func (c *Client) getCurrentUserStream() (*helix.Stream, error) {

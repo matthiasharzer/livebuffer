@@ -121,8 +121,8 @@ func (m *Monitor) wentLive(event stream.WentLiveEvent) {
 func (m *Monitor) wentOffline(event stream.WentOfflineEvent) {
 	logging.Info("stream went offline, stopping recording", "username", m.broadcasterUserName)
 	m.mu.Lock()
-	m.supplementStreamMetadata(event)
 	m.stopRecording()
+	m.supplementStreamMetadata(event)
 	m.mu.Unlock()
 
 	m.recordingStateChannel.Publish(RecordingStateStopped)
