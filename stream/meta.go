@@ -5,8 +5,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
+
+var metaMutex = make(map[string]*sync.RWMutex)
+var masterMu = &sync.RWMutex{}
+
+func getMutex(streamDir string) *sync.RWMutex {
+	masterMu.Lock()
+	defer masterMu.Unlock()
+
+	manager, exists := metaMutex[streamDir]
+	if !exists {
+		manager = &sync.RWMutex{}
+		metaMutex[streamDir] = manager
+	}
+	return manager
+}
 
 const filesDirectory = "stream"
 const metadataFileName = "metadata.json"
@@ -33,6 +49,10 @@ type Metadata struct {
 }
 
 func WriteMetadata(streamDir string, metadata Metadata) error {
+	mu := getMutex(streamDir)
+	mu.Lock()
+	defer mu.Unlock()
+
 	metadataFile := MetadataFile(streamDir)
 	data, err := json.Marshal(metadata)
 	if err != nil {
@@ -48,6 +68,10 @@ func WriteMetadata(streamDir string, metadata Metadata) error {
 }
 
 func ReadMetadata(streamDir string) (Metadata, error) {
+	mu := getMutex(streamDir)
+	mu.RLock()
+	defer mu.RUnlock()
+
 	metadataFile := MetadataFile(streamDir)
 	data, err := os.ReadFile(metadataFile)
 	if err != nil {
@@ -64,6 +88,10 @@ func ReadMetadata(streamDir string) (Metadata, error) {
 }
 
 func UpdateMetadata(streamDir string, updateFunc func(*Metadata) error) error {
+	mu := getMutex(streamDir)
+	mu.Lock()
+	defer mu.Unlock()
+
 	metadata, err := ReadMetadata(streamDir)
 	if err != nil {
 		return fmt.Errorf("failed to read metadata: %w", err)
@@ -83,6 +111,10 @@ func UpdateMetadata(streamDir string, updateFunc func(*Metadata) error) error {
 }
 
 func IsStreamDirectory(streamDir string) bool {
+	mu := getMutex(streamDir)
+	mu.Lock()
+	defer mu.Unlock()
+
 	metadataFile := MetadataFile(streamDir)
 	info, err := os.Stat(metadataFile)
 	if err != nil {
