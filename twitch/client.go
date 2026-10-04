@@ -85,7 +85,7 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 			// maybe another twitch client is responsible for this -> ignore
 			return
 		}
-		stream, err := c.getCurrentUserStream()
+		stream, err := c.getVideoByID(payload.ID)
 		if err != nil {
 			logging.Warn("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
 		}
@@ -93,7 +93,7 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 			logging.Warn("stream not found for event", "type", notification.Subscription.Type)
 		}
 
-		streamTitle := "unknown"
+		streamTitle := ""
 		if stream != nil {
 			streamTitle = stream.Title
 		}
@@ -129,6 +129,22 @@ func (c *Client) HandleInitialStreamState() error {
 	})
 
 	return nil
+}
+
+func (c *Client) getVideoByID(streamID string) (*helix.Video, error) {
+	response, err := c.helixClient.GetVideos(&helix.VideosParams{
+		IDs: []string{streamID},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get videos for stream: %w", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get videos for stream: status code %d", response.StatusCode)
+	}
+	if len(response.Data.Videos) == 0 {
+		return nil, nil
+	}
+	return &response.Data.Videos[0], nil
 }
 
 func (c *Client) getCurrentUserStream() (*helix.Stream, error) {
