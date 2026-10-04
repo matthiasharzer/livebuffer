@@ -85,18 +85,24 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 			// maybe another twitch client is responsible for this -> ignore
 			return
 		}
-		stream, err := c.getVideoByID(payload.ID)
-		if err != nil {
-			logging.Warn("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
-		}
-		if stream == nil {
-			logging.Warn("stream not found for event", "type", notification.Subscription.Type)
-		}
 
 		streamTitle := ""
+		stream, err := c.getCurrentUserStream()
+		if err != nil {
+			logging.Warn("failed to get current user stream for event", "type", notification.Subscription.Type, "error", err)
+		}
 		if stream != nil {
 			streamTitle = stream.Title
+		} else {
+			vod, err := c.getVideoByID(payload.ID)
+			if err != nil {
+				logging.Warn("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
+			}
+			if vod != nil {
+				streamTitle = vod.Title
+			}
 		}
+
 		logging.Info("received event", "type", notification.Subscription.Type, "broadcaster", payload.BroadcasterUserName, "broadcaster_id", payload.BroadcasterUserID, "title", streamTitle, "started_at", payload.StartedAt)
 		c.onlineChannel.Publish(StreamOnlineState{
 			StreamID:             payload.ID,
