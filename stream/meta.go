@@ -19,11 +19,17 @@ func MetadataFile(streamDir string) string {
 	return filepath.Join(streamDir, metadataFileName)
 }
 
+type MetadataDetails struct {
+	Duration time.Duration
+	Size     int64
+}
+
 type Metadata struct {
-	ID                  string    `json:"id"`
-	Title               string    `json:"title"`
-	BroadcasterUserName string    `json:"broadcaster_user_name"`
-	StartedAt           time.Time `json:"started_at"`
+	ID                  string           `json:"id"`
+	Title               string           `json:"title"`
+	BroadcasterUserName string           `json:"broadcaster_user_name"`
+	StartedAt           time.Time        `json:"started_at"`
+	Details             *MetadataDetails `json:"details,omitempty"`
 }
 
 func WriteMetadata(streamDir string, metadata Metadata) error {
@@ -55,6 +61,25 @@ func ReadMetadata(streamDir string) (Metadata, error) {
 	}
 
 	return metadata, nil
+}
+
+func UpdateMetadata(streamDir string, updateFunc func(*Metadata) error) error {
+	metadata, err := ReadMetadata(streamDir)
+	if err != nil {
+		return fmt.Errorf("failed to read metadata: %w", err)
+	}
+
+	err = updateFunc(&metadata)
+	if err != nil {
+		return fmt.Errorf("failed to update metadata: %w", err)
+	}
+
+	err = WriteMetadata(streamDir, metadata)
+	if err != nil {
+		return fmt.Errorf("failed to write updated metadata: %w", err)
+	}
+
+	return nil
 }
 
 func IsStreamDirectory(streamDir string) bool {

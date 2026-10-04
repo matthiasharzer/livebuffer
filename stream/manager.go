@@ -35,6 +35,19 @@ func (m *Manager) Meta() Metadata {
 }
 
 func (m *Manager) GetDetails(state State) (Details, error) {
+	if m.meta.Details != nil {
+		return Details{
+			ID:                  m.meta.ID,
+			Title:               m.meta.Title,
+			BroadcasterUserName: m.meta.BroadcasterUserName,
+			StartedAt:           m.meta.StartedAt,
+			Duration:            m.meta.Details.Duration,
+			Directory:           m.StreamDirectory,
+			Size:                m.meta.Details.Size,
+			StreamState:         state,
+		}, nil
+	}
+
 	hlsInfo, err := hls.Stat(m.StreamFilesDirectory())
 	if err != nil {
 		return Details{}, fmt.Errorf("failed to stat hls directory %s: %w", m.StreamFilesDirectory(), err)
