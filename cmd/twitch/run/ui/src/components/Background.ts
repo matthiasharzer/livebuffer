@@ -65,6 +65,7 @@ export class Background extends Component {
 
 			opacity: 1;
 			animation: pulse 10s infinite;
+			animation-delay: -4s;
 		}
 
 		.background .level-2 {
@@ -74,7 +75,7 @@ export class Background extends Component {
 			opacity: 0;
 
 			animation: pulse 10s infinite;
-			animation-delay: 5s;
+			animation-delay: -9s;
 		}
 
 		@media (prefers-reduced-motion: reduce) {
