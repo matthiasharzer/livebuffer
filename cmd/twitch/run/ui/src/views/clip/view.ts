@@ -37,13 +37,19 @@ export class ClipView extends Component {
 			}
 		}
 
+		.clip-info-controls {
+			display: flex;
+			flex-direction: column;
+			gap: 1rem;
+			padding: 0.5rem;
+		}
+
 		.clip-controls {
 			display: flex;
 			flex-direction: row;
 			justify-content: space-between;
 			flex-wrap: wrap;
 			gap: 0.5rem;
-			padding: 0.5rem;
 
 			.clip-range {
 				display: flex;
@@ -269,63 +275,65 @@ export class ClipView extends Component {
 			<div class="clip-view">
 				<lb-back-button href="/"></lb-back-button>
 				<h1>Create a clip</h1>
-				<h2 title="${stream.title}">${stream.title}</h2>
 				<div class="container video-container">
 					<lb-video .title=${stream.title} .hlsSource="${url}" autoplay @timeupdate=${this.onTimeUpdate}></lb-video>
 				</div>
-				<div class="container clip-controls">
-					<div class="clip-range">
-						<div class="container chip clip-start">
-							<h3>Start</h3>
-							<div class="input-wrapper">
-								<lb-duration-input
-									.valueMs=${this.startMs}
-									.maxValueMs=${stream.duration_milliseconds}
-									name="start"
-									@duration-change=${this.onDurationChangeStart}
-									@duration-validity-change=${(e: CustomEvent<{ valid: boolean }>) => this.onDurationValidityChange('start', e)}
-								></lb-duration-input>
-								<button @click=${this.setStartToNow}>Set to now</button>
+				<div class="container clip-info-controls">
+					<h2 title="${stream.title}">${stream.title}</h2>
+					<div class="clip-controls">
+						<div class="clip-range">
+							<div class="container chip clip-start">
+								<h3>Start</h3>
+								<div class="input-wrapper">
+									<lb-duration-input
+										.valueMs=${this.startMs}
+										.maxValueMs=${stream.duration_milliseconds}
+										name="start"
+										@duration-change=${this.onDurationChangeStart}
+										@duration-validity-change=${(e: CustomEvent<{ valid: boolean }>) => this.onDurationValidityChange('start', e)}
+									></lb-duration-input>
+									<button @click=${this.setStartToNow}>Set to now</button>
+								</div>
+								${this.renderDurationFormatOptions()}
 							</div>
-							${this.renderDurationFormatOptions()}
-						</div>
-						<div class="container chip clip-end">
-							<h3>End</h3>
-							<div class="input-wrapper">
-								<lb-duration-input
-									.valueMs=${this.endMs}
-									.maxValueMs=${stream.duration_milliseconds}
-									name="end"
-									@duration-change=${this.onDurationChangeEnd}
-									@duration-validity-change=${(e: CustomEvent<{ valid: boolean }>) => this.onDurationValidityChange('end', e)}
-								></lb-duration-input>
-								<button @click=${this.setEndToNow}>Set to now</button>
+							<div class="container chip clip-end">
+								<h3>End</h3>
+								<div class="input-wrapper">
+									<lb-duration-input
+										.valueMs=${this.endMs}
+										.maxValueMs=${stream.duration_milliseconds}
+										name="end"
+										@duration-change=${this.onDurationChangeEnd}
+										@duration-validity-change=${(e: CustomEvent<{ valid: boolean }>) => this.onDurationValidityChange('end', e)}
+									></lb-duration-input>
+									<button @click=${this.setEndToNow}>Set to now</button>
+								</div>
+								${this.renderDurationFormatOptions()}
 							</div>
-							${this.renderDurationFormatOptions()}
+							<div class="container chip clip-duration">
+								<h3>Duration</h3>
+								<lb-duration-input disabled .valueMs=${this.durationMs}></lb-duration-input>
+							</div>
 						</div>
-						<div class="container chip clip-duration">
-							<h3>Duration</h3>
-							<lb-duration-input disabled .valueMs=${this.durationMs}></lb-duration-input>
+						<div class="container chip actions">
+							<button class="simple-button" ?disabled=${!this.isValid} @click=${this.togglePreviewClip}>
+								${
+									this.isClipPreview
+										? html`
+									<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M520-200v-560h240v560H520Zm-320 0v-560h240v560H200Zm400-80h80v-400h-80v400Zm-320 0h80v-400h-80v400Zm0-400v400-400Zm320 0v400-400Z"/></svg>
+								Previewing
+								`
+										: html`
+									<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M320-200v-560l440 280-440 280Zm80-280Zm0 134 210-134-210-134v268Z"/></svg>
+								Preview
+								`
+								}
+							</button>
+							<a class="simple-button ${!this.isValid ? 'disabled' : ''}" href="${ifDefined(this.isValid ? this.clipUrl : null)}" ?download=${this.isValid}>
+								<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+								Download
+							</a>
 						</div>
-					</div>
-					<div class="container chip actions">
-						<button class="simple-button" ?disabled=${!this.isValid} @click=${this.togglePreviewClip}>
-							${
-								this.isClipPreview
-									? html`
-								<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M520-200v-560h240v560H520Zm-320 0v-560h240v560H200Zm400-80h80v-400h-80v400Zm-320 0h80v-400h-80v400Zm0-400v400-400Zm320 0v400-400Z"/></svg>
-							Previewing
-							`
-									: html`
-								<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M320-200v-560l440 280-440 280Zm80-280Zm0 134 210-134-210-134v268Z"/></svg>
-							Preview
-							`
-							}
-						</button>
-						<a class="simple-button ${!this.isValid ? 'disabled' : ''}" href="${ifDefined(this.isValid ? this.clipUrl : null)}" ?download=${this.isValid}>
-							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
-							Download
-						</a>
 					</div>
 				</div>
 			</div>
