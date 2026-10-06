@@ -42,7 +42,8 @@ export class VideoView extends Component {
 		super.connectedCallback();
 		const urlParams = new URLSearchParams(window.location.search);
 		const timeParam = urlParams.get('t');
-		this.startAt = timeParam ? parseInt(timeParam, 10) : null;
+		const parsedTime = timeParam ? parseInt(timeParam, 10) : NaN;
+		this.startAt = Number.isFinite(parsedTime) ? parsedTime : null;
 	}
 
 	render() {
