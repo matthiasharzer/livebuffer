@@ -98,6 +98,9 @@ export class Video extends Component {
 	@property({ type: String })
 	title = '';
 
+	@property({ type: Number, attribute: false })
+	startAt: number | null = null;
+
 	@state()
 	enabled = true;
 
@@ -131,7 +134,7 @@ export class Video extends Component {
 		}
 		return {
 			autoStartLoad: true,
-			startPosition: 0,
+			startPosition: this.startAt ?? 0,
 		};
 	}
 
