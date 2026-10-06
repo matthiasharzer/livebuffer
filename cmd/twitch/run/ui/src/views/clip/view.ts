@@ -1,6 +1,7 @@
 import { Task } from '@lit/task';
 import { css, html } from 'lit';
 import { property, query, state } from 'lit/decorators.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import type { Video } from '../../components/Video';
 import { Component } from '../../litutil/Component';
 import { formatDurationParts } from '../../services/formatDuration';
@@ -93,6 +94,19 @@ export class ClipView extends Component {
 			h3 {
 				width: 100%;
 				text-align: left;
+			}
+		}
+
+		.back-button {
+			align-self: flex-start;
+
+			svg {
+				transition: transform 0.2s ease;
+			}
+			&:hover {
+				svg {
+					transform: translateX(-4px);
+				}
 			}
 		}
 
@@ -320,7 +334,7 @@ export class ClipView extends Component {
 							`
 							}
 						</button>
-						<a class="simple-button ${!this.isValid ? 'disabled' : ''}" href="${this.isValid ? this.clipUrl : null}" ?download=${this.isValid}>
+						<a class="simple-button ${!this.isValid ? 'disabled' : ''}" href="${ifDefined(this.isValid ? this.clipUrl : null)}" ?download=${this.isValid}>
 							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
 							Download
 						</a>
