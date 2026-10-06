@@ -7,9 +7,15 @@ import { fetchStream, type StreamInfo } from '../../services/streams';
 export class VideoView extends Component {
 	static styles = css`
 		:host {
-			display: block;
-			width: 100dvw;
-			height: 100dvh;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: safe center;
+			width: 100%;
+			height: 100%;
+			padding: 1rem;
+			overflow-y: auto;
+			scrollbar-gutter: stable;
 		}
 
 		.status-wrapper {
@@ -20,6 +26,15 @@ export class VideoView extends Component {
 			height: 100%;
 			font-size: 1.5rem;
 			text-align: center;
+		}
+
+		.video-view {
+			display: flex;
+			flex-direction: column;
+			gap: 1rem;
+
+			width: 100%;
+			max-width: 1200px;
 		}
 	`;
 
@@ -46,24 +61,34 @@ export class VideoView extends Component {
 		this.startAt = Number.isFinite(parsedTime) ? parsedTime : null;
 	}
 
-	render() {
-		if (!this.streamId) {
-			return html`<div class="status-wrapper"><p>Missing stream_id in the URL.</p></div>`;
-		}
-		const url = `/api/v1/video/${this.streamId}/index.m3u8`;
+	renderView(stream: StreamInfo) {
+		const url = `/api/v1/video/${stream.id}/index.m3u8`;
 
 		return html`
-			${this._streamTask.render({
-				pending: () => html`<div class="status-wrapper"><p>Loading stream information...</p></div>`,
-				complete: (stream: StreamInfo | null) => {
-					if (!stream) {
-						return html`<div class="status-wrapper"><p>Stream not found.</p></div>`;
-					}
-					return html`<lb-video .title=${stream.title} .hlsSource="${url}" .startAt=${this.startAt} autoplay></lb-video>`;
-				},
-				error: e =>
-					html`<div class="status-wrapper"><p>Error loading stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
-			})}
+			<div class="container video-container">
+				<lb-video .title=${stream.title} .hlsSource="${url}" .startAt=${this.startAt} autoplay></lb-video>
+			</div>
+			<lb-stream-info-box .stream=${stream}></lb-stream-info-box>
+		`;
+	}
+
+	render() {
+		return html`
+			<div class="video-view">
+				<lb-back-button href="/"></lb-back-button>
+				${this._streamTask.render({
+					pending: () =>
+						html`<div class="status-wrapper"><p>Loading stream information...</p></div>`,
+					complete: (stream: StreamInfo | null) => {
+						if (!stream) {
+							return html`<div class="status-wrapper"><p>Stream not found.</p></div>`;
+						}
+						return this.renderView(stream);
+					},
+					error: e =>
+						html`<div class="status-wrapper"><p>Error loading stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
+				})}
+			</div>
 		`;
 	}
 }

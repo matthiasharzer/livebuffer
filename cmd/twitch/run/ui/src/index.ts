@@ -9,3 +9,5 @@ import './components/Background.ts';
 import './components/BroadcasterTile.ts';
 import './components/StreamTile.ts';
 import './components/DurationInput.ts';
+import './components/BackButton.ts';
+import './components/StreamInfoBox.ts';
