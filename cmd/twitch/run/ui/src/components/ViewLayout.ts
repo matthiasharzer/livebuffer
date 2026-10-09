@@ -27,10 +27,6 @@ export class ViewLayout extends Component {
 
 		h1 {
 			width: fit-content;
-
-			&:empty {
-				display: none;
-			}
 		}
 
 		.body {
