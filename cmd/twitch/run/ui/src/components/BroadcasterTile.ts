@@ -1,3 +1,4 @@
+import './StreamTile';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { Component } from '../litutil/Component';
