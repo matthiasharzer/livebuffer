@@ -204,12 +204,13 @@ export class ClipView extends Component {
 			if (!stream) {
 				return null;
 			}
+			const startAtMs = this.startAtSeconds !== null ? this.startAtSeconds * 1000 : 0;
 			if (
 				this.startAtSeconds !== null &&
-				this.startAtSeconds >= 0 &&
-				this.startAtSeconds <= stream.duration_milliseconds
+				startAtMs >= 0 &&
+				startAtMs <= stream.duration_milliseconds
 			) {
-				this.startMs = this.startAtSeconds * 1000;
+				this.startMs = startAtMs;
 			} else {
 				this.startMs = 0;
 			}
@@ -295,7 +296,7 @@ export class ClipView extends Component {
 				<lb-back-button href="/"></lb-back-button>
 				<h1>Create a clip</h1>
 				<div class="container video-container">
-					<lb-video .title=${stream.title} .hlsSource="${url}" autoplay @timeupdate=${this.onTimeUpdate} .startAt=${this.startAtSeconds}></lb-video>
+					<lb-video .title=${stream.title} .hlsSource="${url}" autoplay @timeupdate=${this.onTimeUpdate} .startAt=${this.startMs / 1000}></lb-video>
 				</div>
 				<div class="container clip-info-controls">
 					<h2 title="${stream.title}">${stream.title}</h2>
