@@ -1,6 +1,7 @@
 import { Task } from '@lit/task';
 import { css, html } from 'lit';
-import { property } from 'lit/decorators.js';
+import { property, query } from 'lit/decorators.js';
+import type { Video } from '../../components/Video';
 import { Component } from '../../litutil/Component';
 import { fetchStream, type StreamInfo } from '../../services/streams';
 
@@ -41,7 +42,10 @@ export class VideoView extends Component {
 	@property({ attribute: false })
 	streamId: string | null = null;
 
-	startAt: number | null = null;
+	@query('lb-video')
+	videoElement?: Video;
+
+	startAtSeconds: number | null = null;
 
 	private _streamTask = new Task(this, {
 		args: () => [this.streamId],
@@ -58,7 +62,14 @@ export class VideoView extends Component {
 		const urlParams = new URLSearchParams(window.location.search);
 		const timeParam = urlParams.get('t');
 		const parsedTime = timeParam ? parseInt(timeParam, 10) : NaN;
-		this.startAt = Number.isFinite(parsedTime) ? parsedTime : null;
+		this.startAtSeconds = Number.isFinite(parsedTime) ? parsedTime : null;
+	}
+
+	getCurrentTime() {
+		if (this.videoElement) {
+			return this.videoElement.currentTime;
+		}
+		return 0;
 	}
 
 	renderView(stream: StreamInfo) {
@@ -66,9 +77,9 @@ export class VideoView extends Component {
 
 		return html`
 			<div class="container video-container">
-				<lb-video .title=${stream.title} .hlsSource="${url}" .startAt=${this.startAt} autoplay></lb-video>
+				<lb-video .title=${stream.title} .hlsSource="${url}" .startAt=${this.startAtSeconds} autoplay></lb-video>
 			</div>
-			<lb-stream-info-box .stream=${stream}></lb-stream-info-box>
+			<lb-stream-info-box .stream=${stream} .getCurrentTime=${this.getCurrentTime.bind(this)}></lb-stream-info-box>
 		`;
 	}
 
