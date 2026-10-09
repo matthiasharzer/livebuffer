@@ -1,6 +1,7 @@
 import '../../components/Video';
 import '../../components/StreamInfoBox';
 import '../../components/BackButton';
+import '../../components/ViewLayout';
 import { Task } from '@lit/task';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
@@ -9,18 +10,6 @@ import { fetchLiveStream, type StreamInfo } from '../../services/streams';
 
 export class LiveView extends Component {
 	static styles = css`
-		:host {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: safe center;
-			width: 100%;
-			height: 100%;
-			padding: 1rem;
-			overflow-y: auto;
-			scrollbar-gutter: stable;
-		}
-
 		.status-wrapper {
 			display: flex;
 			justify-content: center;
@@ -31,17 +20,7 @@ export class LiveView extends Component {
 			text-align: center;
 		}
 
-		lb-video {
-			display: block;
-			height: 100%;
-		}
-
-		.live-view {
-			display: flex;
-			flex-direction: column;
-			gap: 1rem;
-
-			width: 100%;
+		::part(view) {
 			max-width: 1200px;
 		}
 	`;
@@ -60,6 +39,7 @@ export class LiveView extends Component {
 		const url = `/api/v1/video/${stream.id}/index.m3u8`;
 
 		return html`
+			<span slot="title">Watch ${stream.username} live</span>
 			<div class="container video-container">
 				<lb-video .title=${stream.title} .hlsSource=${url} live autoplay></lb-video>
 			</div>
@@ -73,8 +53,7 @@ export class LiveView extends Component {
 		}
 
 		return html`
-			<div class="live-view">
-				<lb-back-button href="/"></lb-back-button>
+			<lb-view-layout show-back-button>
 				${this._liveStreamTask.render({
 					pending: () =>
 						html`<div class="status-wrapper"><p>Loading live stream information...</p></div>`,
@@ -87,7 +66,7 @@ export class LiveView extends Component {
 					error: e =>
 						html`<div class="status-wrapper"><p>Error loading live stream information: ${e instanceof Error ? e.message : 'Unknown error'}</p></div>`,
 				})}
-			</div>
+			</lb-view-layout>
 		`;
 	}
 }

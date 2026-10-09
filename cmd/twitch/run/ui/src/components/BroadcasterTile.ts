@@ -31,7 +31,6 @@ export class BroadcasterTile extends Component {
 			border: 1px solid var(--border-color, #333);
 			border-radius: 0.5rem;
 			padding: 0.5rem;
-			margin-bottom: 1rem;
 			width: 100%;
 
 			&::details-content {
