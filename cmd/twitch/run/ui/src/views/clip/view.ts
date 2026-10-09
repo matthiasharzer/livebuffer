@@ -1,3 +1,6 @@
+import '../../components/Video';
+import '../../components/DurationInput';
+import '../../components/BackButton';
 import { Task } from '@lit/task';
 import { css, html } from 'lit';
 import { property, query, state } from 'lit/decorators.js';
