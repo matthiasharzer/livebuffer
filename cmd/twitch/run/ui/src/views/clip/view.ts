@@ -162,6 +162,8 @@ export class ClipView extends Component {
 		end: true,
 	};
 
+	startAtSeconds: number | null = null;
+
 	get durationMs(): number | null {
 		if (!this.isDurationInputsValid) {
 			return null;
@@ -199,13 +201,31 @@ export class ClipView extends Component {
 				return null;
 			}
 			const stream = await fetchStream(streamId);
-			if (stream) {
-				this.startMs = 0;
-				this.endMs = stream.duration_milliseconds;
+			if (!stream) {
+				return null;
 			}
+			const startAtMs = this.startAtSeconds !== null ? this.startAtSeconds * 1000 : 0;
+			if (
+				this.startAtSeconds !== null &&
+				startAtMs >= 0 &&
+				startAtMs <= stream.duration_milliseconds
+			) {
+				this.startMs = startAtMs;
+			} else {
+				this.startMs = 0;
+			}
+			this.endMs = stream.duration_milliseconds;
 			return stream;
 		},
 	});
+
+	connectedCallback(): void {
+		super.connectedCallback();
+		const urlParams = new URLSearchParams(window.location.search);
+		const timeParam = urlParams.get('t');
+		const parsedTime = timeParam ? parseInt(timeParam, 10) : NaN;
+		this.startAtSeconds = Number.isFinite(parsedTime) ? parsedTime : null;
+	}
 
 	onDurationChangeStart(event: CustomEvent<{ value: number }>) {
 		this.startMs = event.detail.value;
@@ -276,7 +296,7 @@ export class ClipView extends Component {
 				<lb-back-button href="/"></lb-back-button>
 				<h1>Create a clip</h1>
 				<div class="container video-container">
-					<lb-video .title=${stream.title} .hlsSource="${url}" autoplay @timeupdate=${this.onTimeUpdate}></lb-video>
+					<lb-video .title=${stream.title} .hlsSource="${url}" autoplay @timeupdate=${this.onTimeUpdate} .startAt=${this.startMs / 1000}></lb-video>
 				</div>
 				<div class="container clip-info-controls">
 					<h2 title="${stream.title}">${stream.title}</h2>
