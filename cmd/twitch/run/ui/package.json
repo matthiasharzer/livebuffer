@@ -17,8 +17,8 @@
 		"analyze": "biome check --error-on-warnings",
 		"test": "echo \"not implemented\"",
 		"format": "biome check --write",
-		"build": "esbuild --bundle --outdir=public/dist --keep-names src/index.ts",
+		"build": "esbuild --bundle --format=esm --splitting --outdir=public/dist --keep-names src/index.ts",
 		"typecheck": "tsc --noEmit",
-		"watch": "esbuild --bundle --outdir=public/dist --keep-names --sourcemap --watch src/index.ts"
+		"watch": "esbuild --bundle --format=esm --splitting --outdir=public/dist --keep-names --sourcemap --watch src/index.ts"
 	}
 }
