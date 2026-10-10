@@ -40,6 +40,11 @@ export class Button extends Component {
 				cursor: not-allowed;
 				filter: grayscale(100%);
 			}
+
+			&:focus-visible {
+				outline: 2px solid var(--primary-color, #cd79fd);
+				outline-offset: 2px;
+			}
 		}
 
 		.primary, .secondary {
@@ -119,6 +124,13 @@ export class Button extends Component {
 		return classes.join(' ');
 	}
 
+	onClick(event: Event) {
+		if (this.disabled) {
+			event.preventDefault();
+			event.stopPropagation();
+		}
+	}
+
 	renderIcon() {
 		if (this.isLoading) {
 			return html`<lb-spinner></lb-spinner>`;
@@ -145,7 +157,7 @@ export class Button extends Component {
 		}
 
 		return html`
-			<a href="${this.href}" class="${this.classes()}" aria-disabled=${this.disabled} ?download=${this.download} target=${ifDefined(this.target)}>
+			<a href="${this.href}" class="${this.classes()}" aria-disabled=${this.disabled} ?download=${this.download} target=${ifDefined(this.target)} @click=${this.onClick}>
 				${this.renderContent()}
 			</a>
 		`;
@@ -153,7 +165,7 @@ export class Button extends Component {
 
 	renderButton() {
 		return html`
-			<button class="${this.classes()}" ?disabled=${this.disabled}>
+			<button class="${this.classes()}" ?disabled=${this.disabled} @click=${this.onClick}>
 				${this.renderContent()}
 			</button>
 		`;
