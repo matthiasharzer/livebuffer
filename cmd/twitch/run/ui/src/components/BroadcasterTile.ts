@@ -1,4 +1,5 @@
 import './StreamTile';
+import './Button';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { Component } from '../litutil/Component';
@@ -31,7 +32,6 @@ export class BroadcasterTile extends Component {
 			border: 1px solid var(--border-color, #333);
 			border-radius: 0.5rem;
 			padding: 0.5rem;
-			margin-bottom: 1rem;
 			width: 100%;
 
 			&::details-content {
@@ -147,6 +147,8 @@ export class BroadcasterTile extends Component {
 	@property({ attribute: false })
 	broadcaster: BroadcasterInfo | null = null;
 
+	initialStateOpen = false;
+
 	get mustBroadcaster() {
 		if (!this.broadcaster) {
 			throw new Error('Broadcaster is not set');
@@ -220,13 +222,30 @@ export class BroadcasterTile extends Component {
 		);
 	}
 
+	connectedCallback(): void {
+		super.connectedCallback();
+		const localStorageKey = `broadcaster-tile-open-${this.mustBroadcaster.username}`;
+		const savedState = localStorage.getItem(localStorageKey);
+		if (savedState !== null) {
+			this.initialStateOpen = savedState === 'true';
+		} else {
+			this.initialStateOpen = false;
+		}
+	}
+
+	onToggleDetails(event: Event) {
+		const detailsElement = event.currentTarget as HTMLDetailsElement;
+		const localStorageKey = `broadcaster-tile-open-${this.mustBroadcaster.username}`;
+		localStorage.setItem(localStorageKey, detailsElement.open.toString());
+	}
+
 	render() {
 		if (!this.broadcaster) {
 			return '';
 		}
 
 		return html`
-			<details>
+			<details ?open=${this.initialStateOpen} @toggle=${this.onToggleDetails}>
 				<summary>
 					<div class="angle-icon">
 						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16">
@@ -242,11 +261,11 @@ export class BroadcasterTile extends Component {
 							<p class="description">${this.streamsText} · ${this.lastLiveText}</p>
 						</div>
 						<div class="actions">
-								${
-									this.latestStream && this.latestStream.state === 'live'
-										? html`<a class="simple-button watch-link" href="/live/${this.broadcaster.username}">Watch Live</a>`
-										: ''
-								}
+							${
+								this.latestStream && this.latestStream.state === 'live'
+									? html`<lb-button href="/live/${this.broadcaster.username}">Watch Live</lb-button>`
+									: ''
+							}
 						</div>
 					</div>
 				</summary>
