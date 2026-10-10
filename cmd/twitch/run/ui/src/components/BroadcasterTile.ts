@@ -1,4 +1,5 @@
 import './StreamTile';
+import './Button';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { Component } from '../litutil/Component';
@@ -241,11 +242,11 @@ export class BroadcasterTile extends Component {
 							<p class="description">${this.streamsText} · ${this.lastLiveText}</p>
 						</div>
 						<div class="actions">
-								${
-									this.latestStream && this.latestStream.state === 'live'
-										? html`<a class="simple-button watch-link" href="/live/${this.broadcaster.username}">Watch Live</a>`
-										: ''
-								}
+							${
+								this.latestStream && this.latestStream.state === 'live'
+									? html`<lb-button href="/live/${this.broadcaster.username}">Watch Live</lb-button>`
+									: ''
+							}
 						</div>
 					</div>
 				</summary>

@@ -19,7 +19,7 @@ export class ViewLayout extends Component {
 		.view {
 			display: flex;
 			flex-direction: column;
-			gap: 1rem;
+			gap: 0.5rem;
 
 			width: 100%;
 			max-width: 700px;

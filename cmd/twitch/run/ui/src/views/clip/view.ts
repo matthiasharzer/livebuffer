@@ -1,4 +1,5 @@
 import '../../components/Video';
+import '../../components/Button';
 import '../../components/DurationInput';
 import '../../components/BackButton';
 import '../../components/ViewLayout';
@@ -138,6 +139,9 @@ export class ClipView extends Component {
 
 	@state()
 	isClipPreview: boolean = false;
+
+	@state()
+	isDownloading: boolean = false;
 
 	@query('lb-video')
 	videoElement!: Video;
@@ -310,23 +314,23 @@ export class ClipView extends Component {
 
 	renderActions() {
 		return html`
-			<button class="simple-button" ?disabled=${!this.isValid} @click=${this.togglePreviewClip}>
+			<lb-button variant="secondary" ?disabled=${!this.isValid} @click=${this.togglePreviewClip} show-icon width="full">
 				${
 					this.isClipPreview
 						? html`
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M520-200v-560h240v560H520Zm-320 0v-560h240v560H200Zm400-80h80v-400h-80v400Zm-320 0h80v-400h-80v400Zm0-400v400-400Zm320 0v400-400Z"/></svg>
-				Previewing
-				`
+					<svg slot="icon" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M520-200v-560h240v560H520Zm-320 0v-560h240v560H200Zm400-80h80v-400h-80v400Zm-320 0h80v-400h-80v400Zm0-400v400-400Zm320 0v400-400Z"/></svg>
+					Previewing
+					`
 						: html`
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M320-200v-560l440 280-440 280Zm80-280Zm0 134 210-134-210-134v268Z"/></svg>
-				Preview
-				`
+					<svg slot="icon" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M320-200v-560l440 280-440 280Zm80-280Zm0 134 210-134-210-134v268Z"/></svg>
+					Preview
+					`
 				}
-			</button>
-			<a class="simple-button ${!this.isValid ? 'disabled' : ''}" href="${ifDefined(this.isValid ? this.clipUrl : null)}" ?download=${this.isValid}>
-				<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+			</lb-button>
+			<lb-button variant="secondary" ?disabled=${!this.isValid} show-icon href="${ifDefined(this.clipUrl)}" target="_blank" width="full" ?is-loading=${this.isDownloading}>
+				<svg slot="icon" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
 				Download
-			</a>
+			</lb-button>
 		`;
 	}
 
