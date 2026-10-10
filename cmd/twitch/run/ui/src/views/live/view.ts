@@ -3,9 +3,12 @@ import '../../components/StreamInfoBox';
 import '../../components/BackButton';
 import { Task } from '@lit/task';
 import { css, html } from 'lit';
-import { property } from 'lit/decorators.js';
+import { property, query } from 'lit/decorators.js';
+import type { Video } from '../../components/Video';
 import { Component } from '../../litutil/Component';
 import { fetchLiveStream, type StreamInfo } from '../../services/streams';
+
+const expectedClipTimeOffsetSeconds = 30; // seconds
 
 export class LiveView extends Component {
 	static styles = css`
@@ -49,12 +52,26 @@ export class LiveView extends Component {
 	@property({ attribute: false })
 	username: string | null = null;
 
+	@query('lb-video')
+	videoElement?: Video;
+
 	private _liveStreamTask = new Task(this, {
 		args: () => [this.username],
 		task: async ([username]) => {
 			return fetchLiveStream(username || '');
 		},
 	});
+
+	getCurrentTime() {
+		if (this.videoElement) {
+			const targetClipTime = this.videoElement.currentTime - expectedClipTimeOffsetSeconds;
+			if (targetClipTime < 0) {
+				return 0;
+			}
+			return targetClipTime;
+		}
+		return 0;
+	}
 
 	renderView(stream: StreamInfo) {
 		const url = `/api/v1/video/${stream.id}/index.m3u8`;
@@ -63,7 +80,7 @@ export class LiveView extends Component {
 			<div class="container video-container">
 				<lb-video .title=${stream.title} .hlsSource=${url} live autoplay></lb-video>
 			</div>
-			<lb-stream-info-box .stream=${stream}></lb-stream-info-box>
+			<lb-stream-info-box .stream=${stream} .getCurrentTime=${this.getCurrentTime.bind(this)}></lb-stream-info-box>
 		`;
 	}
 
