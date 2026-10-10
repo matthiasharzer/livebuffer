@@ -147,6 +147,8 @@ export class BroadcasterTile extends Component {
 	@property({ attribute: false })
 	broadcaster: BroadcasterInfo | null = null;
 
+	initialStateOpen = false;
+
 	get mustBroadcaster() {
 		if (!this.broadcaster) {
 			throw new Error('Broadcaster is not set');
@@ -220,13 +222,30 @@ export class BroadcasterTile extends Component {
 		);
 	}
 
+	connectedCallback(): void {
+		super.connectedCallback();
+		const localStorageKey = `broadcaster-tile-open-${this.mustBroadcaster.username}`;
+		const savedState = localStorage.getItem(localStorageKey);
+		if (savedState !== null) {
+			this.initialStateOpen = savedState === 'true';
+		} else {
+			this.initialStateOpen = false;
+		}
+	}
+
+	onToggleDetails(event: Event) {
+		const detailsElement = event.currentTarget as HTMLDetailsElement;
+		const localStorageKey = `broadcaster-tile-open-${this.mustBroadcaster.username}`;
+		localStorage.setItem(localStorageKey, detailsElement.open.toString());
+	}
+
 	render() {
 		if (!this.broadcaster) {
 			return '';
 		}
 
 		return html`
-			<details>
+			<details ?open=${this.initialStateOpen} @toggle=${this.onToggleDetails}>
 				<summary>
 					<div class="angle-icon">
 						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16">
