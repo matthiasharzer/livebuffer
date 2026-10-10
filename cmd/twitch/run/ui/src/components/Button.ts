@@ -109,7 +109,7 @@ export class Button extends Component {
 	download: boolean = false;
 
 	@property({ type: String })
-	target: string | null = null;
+	target?: string;
 
 	classes() {
 		const classes = ['button'];
@@ -155,9 +155,10 @@ export class Button extends Component {
 		if (!this.href) {
 			return '';
 		}
+		const href = this.disabled ? undefined : this.href;
 
 		return html`
-			<a href="${this.href}" class="${this.classes()}" aria-disabled=${this.disabled} ?download=${this.download} target=${ifDefined(this.target)} @click=${this.onClick}>
+			<a href="${ifDefined(href)}" class="${this.classes()}" aria-disabled=${this.disabled} ?download=${this.download} target=${ifDefined(this.target)} @click=${this.onClick}>
 				${this.renderContent()}
 			</a>
 		`;
