@@ -225,10 +225,12 @@ export class BroadcasterTile extends Component {
 	connectedCallback(): void {
 		super.connectedCallback();
 		const localStorageKey = `broadcaster-tile-open-${this.mustBroadcaster.username}`;
-		const savedState = localStorage.getItem(localStorageKey);
-		if (savedState !== null) {
+
+		try {
+			const savedState = localStorage.getItem(localStorageKey);
 			this.initialStateOpen = savedState === 'true';
-		} else {
+		} catch (e) {
+			console.error('Error accessing localStorage:', e);
 			this.initialStateOpen = false;
 		}
 	}
@@ -236,7 +238,12 @@ export class BroadcasterTile extends Component {
 	onToggleDetails(event: Event) {
 		const detailsElement = event.currentTarget as HTMLDetailsElement;
 		const localStorageKey = `broadcaster-tile-open-${this.mustBroadcaster.username}`;
-		localStorage.setItem(localStorageKey, detailsElement.open.toString());
+
+		try {
+			localStorage.setItem(localStorageKey, detailsElement.open.toString());
+		} catch (e) {
+			console.error('Error accessing localStorage:', e);
+		}
 	}
 
 	render() {
@@ -277,7 +284,6 @@ export class BroadcasterTile extends Component {
 									stream => html`<lb-stream-tile .stream=${stream}></lb-stream-tile>`,
 								)
 					}
-
 				</div>
 			</details>
 		`;
