@@ -13,6 +13,8 @@ import (
 	"github.com/matthiasharzer/livebuffer/stream"
 )
 
+const checkMutedSegmentsDelay = 24 * time.Hour
+
 type Director struct {
 	repository                   *vod.Repository
 	monitorByBroadcasterUserName map[string]*broadcaster.Monitor
@@ -59,7 +61,7 @@ func (d *Director) onRecordingStateChange(username string, event broadcaster.Rec
 	}
 
 	if event.State == broadcaster.RecordingStateStopped {
-		scheduler.In(24 * time.Hour).Run(func() error {
+		scheduler.In(checkMutedSegmentsDelay).Run(func() error {
 			monitor.CheckMutedSegments(event.StreamID)
 			return nil
 		})

@@ -214,6 +214,9 @@ var Command = &cobra.Command{
 			}
 		}
 
+		// supplement details/muted segments for existing streams
+		director.StartupTasks()
+
 		mux := GetMux(director, usernames, eventSubClient.HTTPHandler())
 
 		addr := fmt.Sprintf("%s:%d", httpHost, httpPort)

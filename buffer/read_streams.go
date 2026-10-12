@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/matthiasharzer/livebuffer/buffer/vod/filter"
@@ -39,7 +41,7 @@ func (d *Director) getStreamCommon(streamID string) (*streamCommon, error) {
 
 func (d *Director) getStreamDetailsBestEffort(filterFunc filter.Func) iter.Seq[stream.Details] {
 	return func(yield func(stream.Details) bool) {
-		managers := d.repository.ReadStreams(filterFunc)
+		managers := filter.Apply(d.readKnownStreams(), filterFunc)
 
 		for manager, err := range managers {
 			if err != nil {
@@ -57,6 +59,11 @@ func (d *Director) getStreamDetailsBestEffort(filterFunc filter.Func) iter.Seq[s
 			}
 		}
 	}
+}
+
+func (d *Director) readKnownStreams() iter.Seq2[stream.Manager, error] {
+	names := slices.Collect(maps.Keys(d.monitorByBroadcasterUserName))
+	return d.repository.ReadStreams(filter.ByAnyBroadcasterNames(names...))
 }
 
 func (d *Director) GetStreamReader(ctx context.Context, streamID string) (stream.Details, io.ReadCloser, error) {

@@ -155,10 +155,18 @@ func (m *Monitor) supplementStreamMetadata(event stream.WentOfflineEvent) {
 		}
 	}
 
+	err = m.supplementStreamMetadataDetails(event.StreamID)
+	if err != nil {
+		logging.Error("failed to supplement stream metadata details", "error", err)
+	}
+}
+
+func (m *Monitor) supplementStreamMetadataDetails(streamID string) error {
+	streamDirectory := m.streamDirectory(streamID)
+
 	hlsInfo, err := hls.Stat(stream.FilesDirectory(streamDirectory))
 	if err != nil {
-		logging.Warn("failed to stat hls directory", "error", err)
-		return
+		return err
 	}
 
 	err = stream.UpdateMetadata(streamDirectory, func(meta *stream.Metadata) error {
@@ -169,8 +177,9 @@ func (m *Monitor) supplementStreamMetadata(event stream.WentOfflineEvent) {
 		return nil
 	})
 	if err != nil {
-		logging.Warn("failed to update metadata with hls info", "error", err)
+		return err
 	}
+	return nil
 }
 
 func (m *Monitor) stopRecording() {
@@ -186,6 +195,17 @@ func (m *Monitor) stopRecording() {
 	m.liveRecordingSession = nil
 }
 
+func (m *Monitor) SupplementStreamMetadata(streamID string) {
+	logging.Info("supplementing stream metadata", "stream_id", streamID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	err := m.supplementStreamMetadataDetails(streamID)
+	if err != nil {
+		logging.Error("failed to supplement stream metadata details", "error", err, "stream_id", streamID)
+	}
+}
+
 func (m *Monitor) CheckMutedSegments(streamID string) {
 	logging.Info("checking for muted segments", "stream_id", streamID)
 	streamDirectory := m.streamDirectory(streamID)
@@ -195,18 +215,15 @@ func (m *Monitor) CheckMutedSegments(streamID string) {
 		return
 	}
 
-	if len(mutedSegments) == 0 {
-		logging.Info("no muted segments found for stream", "stream_id", streamID)
-		return
-	}
 	logging.Info("found muted segments for stream", "stream_id", streamID, "count", len(mutedSegments))
 
-	mutedSegmentsMeta := make([]stream.MutedSegment, len(mutedSegments))
-	for i, mutedSegment := range mutedSegments {
-		mutedSegmentsMeta[i] = stream.MutedSegment{
+	//goland:noinspection ALL
+	mutedSegmentsMeta := []stream.MutedSegment{}
+	for _, mutedSegment := range mutedSegments {
+		mutedSegmentsMeta = append(mutedSegmentsMeta, stream.MutedSegment{
 			Start: mutedSegment.Start,
 			End:   mutedSegment.End,
-		}
+		})
 	}
 
 	err = stream.UpdateMetadata(streamDirectory, func(meta *stream.Metadata) error {
