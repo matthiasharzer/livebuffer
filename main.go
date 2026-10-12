@@ -6,6 +6,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/cmd/twitch"
 	"github.com/matthiasharzer/livebuffer/cmd/version"
+	"github.com/matthiasharzer/livebuffer/scheduler"
 
 	"github.com/spf13/cobra"
 )
@@ -25,6 +26,7 @@ func init() {
 }
 
 func main() {
+	defer scheduler.Shutdown()
 	err := rootCommand.Execute()
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
