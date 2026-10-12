@@ -3,11 +3,13 @@ package buffer
 import (
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/matthiasharzer/livebuffer/buffer/broadcaster"
 	"github.com/matthiasharzer/livebuffer/buffer/vod"
 	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
+	"github.com/matthiasharzer/livebuffer/scheduler"
 	"github.com/matthiasharzer/livebuffer/stream"
 )
 
@@ -30,8 +32,8 @@ func NewDirector(repository *vod.Repository, broadcasterMonitors []*broadcaster.
 	for _, monitor := range broadcasterMonitors {
 		director.monitorByBroadcasterUserName[monitor.BroadcasterUserName()] = monitor
 
-		unsubscribe := monitor.RecordingStateChannel().Subscribe(func(state broadcaster.RecordingState) {
-			director.onRecordingStateChange(monitor.BroadcasterUserName(), state)
+		unsubscribe := monitor.RecordingStateChannel().Subscribe(func(event broadcaster.RecordingStateChangeEvent) {
+			director.onRecordingStateChange(monitor.BroadcasterUserName(), event)
 		})
 		director.unsubscriber = append(director.unsubscriber, unsubscribe)
 	}
@@ -40,14 +42,27 @@ func NewDirector(repository *vod.Repository, broadcasterMonitors []*broadcaster.
 	return director, nil
 }
 
-func (d *Director) onRecordingStateChange(username string, state broadcaster.RecordingState) {
+func (d *Director) onRecordingStateChange(username string, event broadcaster.RecordingStateChangeEvent) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
+	monitor, ok := d.monitorByBroadcasterUserName[username]
+	if !ok {
+		logging.Warn("received recording state change for unknown broadcaster", "username", username, "recording_state", event.State)
+		return
+	}
 
 	// we cleanup on all recording state updates, just to be sure, even though recording running should be enough
 	err := d.cleanupUser(username)
 	if err != nil {
-		logging.Warn("failed to cleanup streams", "error", err, "username", username, "recording_state", state)
+		logging.Warn("failed to cleanup streams", "error", err, "username", username, "recording_state", event.State)
+	}
+
+	if event.State == broadcaster.RecordingStateStopped {
+		scheduler.In(24 * time.Hour).Run(func() error {
+			monitor.CheckMutedSegments(event.StreamID)
+			return nil
+		})
 	}
 }
 

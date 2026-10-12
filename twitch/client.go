@@ -12,6 +12,11 @@ import (
 	"github.com/nicklaw5/helix/v2"
 )
 
+type MutedSegment struct {
+	Start time.Duration
+	End   time.Duration
+}
+
 type StreamOnlineState struct {
 	StreamID             string
 	IsOnline             bool
@@ -94,7 +99,7 @@ func (c *Client) handleEventSubNotification(notification eventsub.Notification) 
 		if stream != nil && stream.ID == payload.ID {
 			streamTitle = stream.Title
 		} else {
-			vod, err := c.getVideoByID(payload.ID)
+			vod, err := c.getVideoByStreamID(payload.ID)
 			if err != nil {
 				logging.Warn("failed to get stream for event", "type", notification.Subscription.Type, "error", err)
 			}
@@ -137,7 +142,7 @@ func (c *Client) HandleInitialStreamState() error {
 	return nil
 }
 
-func (c *Client) getVideoByID(streamID string) (*helix.Video, error) {
+func (c *Client) getVideoByStreamID(streamID string) (*helix.Video, error) {
 	response, err := c.helixClient.GetVideos(&helix.VideosParams{
 		UserID: c.userID,
 	})
@@ -169,6 +174,27 @@ func (c *Client) getCurrentUserStream() (*helix.Stream, error) {
 		return nil, nil
 	}
 	return &response.Data.Streams[0], nil
+}
+
+func (c *Client) GetMutedSegments(streamID string) ([]MutedSegment, error) {
+	video, err := c.getVideoByStreamID(streamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get video by stream ID: %w", err)
+	}
+	if video == nil {
+		return nil, fmt.Errorf("video not found for stream ID: %s", streamID)
+	}
+	if len(video.MutedSegments) > 0 {
+		mutedSegments := make([]MutedSegment, len(video.MutedSegments))
+		for i, mutedSegment := range video.MutedSegments {
+			mutedSegments[i] = MutedSegment{
+				Start: time.Duration(mutedSegment.Offset) * time.Second,
+				End:   time.Duration(mutedSegment.Offset+mutedSegment.Duration) * time.Second,
+			}
+		}
+		return mutedSegments, nil
+	}
+	return getMutedSegmentsFromHLS(video.URL)
 }
 
 func (c *Client) StartEventSub() error {
