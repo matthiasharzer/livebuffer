@@ -1,4 +1,5 @@
 import '../../components/BroadcasterTile';
+import '../../components/ViewLayout';
 import { Task } from '@lit/task';
 import { css, html } from 'lit';
 import { Component } from '../../litutil/Component';
@@ -6,33 +7,8 @@ import { type BroadcasterInfo, fetchBroadcasters } from '../../services/streams'
 
 export class RootView extends Component {
 	static styles = css`
-		:host {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: safe center;
-			width: 100%;
-			height: 100%;
-			padding: 1rem;
-			overflow-y: auto;
-			scrollbar-gutter: stable;
-		}
-
-		.overview {
-			display: flex;
-			flex-direction: column;
-
-			width: 100%;
+		::part(view) {
 			max-width: 700px;
-
-			h1 {
-				width: fit-content
-			}
-		}
-
-		.broadcasters-list {
-			margin-top: 1rem;
-			width: 100%;
 		}
 	`;
 
@@ -53,22 +29,20 @@ export class RootView extends Component {
 
 	render() {
 		return html`
-			<div class="overview">
-				<h1>Welcome to LiveBuffer</h1>
-				<div class="broadcasters-list">
-					${this.broadcasters.render({
-						pending: () => html`<p>Loading broadcasters...</p>`,
-						complete: (broadcasters: BroadcasterInfo[]) => {
-							if (broadcasters.length === 0) {
-								return html`<p>No broadcasters found.</p>`;
-							}
-							return this.renderBroadcasters(broadcasters);
-						},
-						error: e =>
-							html`<p>Error loading broadcasters: ${e instanceof Error ? e.message : 'Unknown error'}</p>`,
-					})}
-					</div>
-				</div>
+			<lb-view-layout>
+				<span slot="title">Welcome to LiveBuffer</span>
+				${this.broadcasters.render({
+					pending: () => html`<p>Loading broadcasters...</p>`,
+					complete: (broadcasters: BroadcasterInfo[]) => {
+						if (broadcasters.length === 0) {
+							return html`<p>No broadcasters found.</p>`;
+						}
+						return this.renderBroadcasters(broadcasters);
+					},
+					error: e =>
+						html`<p>Error loading broadcasters: ${e instanceof Error ? e.message : 'Unknown error'}</p>`,
+				})}
+				</lb-view-layout>
 		`;
 	}
 }
