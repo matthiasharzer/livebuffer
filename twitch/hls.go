@@ -54,7 +54,11 @@ func getMutedSegmentsFromHLS(videoURL string) ([]MutedSegment, error) {
 		return nil, err
 	}
 
-	resp, err := http.Get(hlsURL)
+	httpClient := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := httpClient.Get(hlsURL)
 	if err != nil {
 		return nil, errors.New("failed to fetch HLS playlist: " + err.Error())
 	}

@@ -16,14 +16,25 @@ func (d *Director) StartupTasks() {
 	d.checkMutedSegmentsInitially()
 }
 
+func (d *Director) isStreamFinished(meta stream.Metadata) bool {
+	if meta.Details == nil {
+		return false
+	}
+	state := d.getStreamState(meta.ID)
+	if state == stream.StateLive {
+		return false
+	}
+	return true
+}
+
 func (d *Director) checkDetailsInitially() {
-	for s := range d.readKnownStreams() {
-		meta := s.Meta()
-		if meta.Details != nil {
+	for s, err := range d.readKnownStreams() {
+		if err != nil {
+			logging.Warn("failed to read stream", "error", err)
 			continue
 		}
-		streamState := d.getStreamState(meta.ID)
-		if streamState == stream.StateLive {
+		meta := s.Meta()
+		if !d.isStreamFinished(meta) {
 			continue
 		}
 
@@ -38,14 +49,17 @@ func (d *Director) checkDetailsInitially() {
 }
 
 func (d *Director) checkMutedSegmentsInitially() {
-	for s := range d.readKnownStreams() {
-		meta := s.Meta()
-		details := meta.Details
-		if meta.MutedSegments != nil {
+	for s, err := range d.readKnownStreams() {
+		if err != nil {
+			logging.Warn("failed to read stream", "error", err)
 			continue
 		}
-		if details == nil {
-			logging.Warn("stream has no details, cannot check muted segments", "stream_id", s.StreamID())
+
+		meta := s.Meta()
+		if !d.isStreamFinished(meta) {
+			continue
+		}
+		if meta.MutedSegments != nil {
 			continue
 		}
 		monitor, ok := d.monitorByBroadcasterUserName[meta.BroadcasterUserName]
@@ -54,7 +68,7 @@ func (d *Director) checkMutedSegmentsInitially() {
 			continue
 		}
 
-		streamEnd := meta.StartedAt.Add(details.Duration)
+		streamEnd := meta.StartedAt.Add(meta.Details.Duration)
 		checkAt := streamEnd.Add(checkMutedSegmentsDelay)
 		checkIn := time.Until(checkAt)
 

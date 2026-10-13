@@ -27,7 +27,7 @@ func ParseSegments(playlistReader io.Reader) ([]Segment, error) {
 		}
 
 		if after, ok := strings.CutPrefix(line, "#EXTINF:"); ok {
-			valueStr := strings.TrimSuffix(after, ",")
+			valueStr, _, _ := strings.Cut(after, ",")
 			var err error
 			currentDuration, err = strconv.ParseFloat(valueStr, 64)
 			if err != nil {
