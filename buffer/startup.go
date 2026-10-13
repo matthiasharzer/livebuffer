@@ -25,7 +25,7 @@ func (d *Director) checkDetailsInitially() {
 		meta := s.Meta()
 		state := d.getStreamState(meta.ID)
 		if state == stream.StateLive {
-			return
+			continue
 		}
 
 		monitor, ok := d.monitorByBroadcasterUserName[meta.BroadcasterUserName]
@@ -51,7 +51,7 @@ func (d *Director) checkMutedSegmentsInitially() {
 		}
 		state := d.getStreamState(meta.ID)
 		if state == stream.StateLive {
-			return
+			continue
 		}
 
 		monitor, ok := d.monitorByBroadcasterUserName[meta.BroadcasterUserName]

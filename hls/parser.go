@@ -35,7 +35,7 @@ func ParseSegments(playlistReader io.Reader) ([]Segment, error) {
 			}
 
 			expectingAFileNameNext = true
-		} else if expectingAFileNameNext {
+		} else if expectingAFileNameNext && !strings.HasPrefix(line, "#") {
 			segments = append(segments, Segment{
 				Duration: time.Duration(int64(currentDuration * float64(time.Second))),
 				FileName: line,
