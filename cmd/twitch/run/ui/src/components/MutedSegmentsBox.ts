@@ -60,7 +60,7 @@ export class MutedSegmentsBox extends Component {
 				<div class="muted-segments">
 					${this.mutedSegments.map(segment => this.renderMutedSegment(segment))}
 				</div>
-				<p class="hint">The now available Twich VOD contains one or more muted segments. Click on a segment, to jump to it.</p>
+				<p class="hint">The now available Twitch VOD contains one or more muted segments. Click on a segment to jump to it.</p>
 			</div>
 		`;
 	}

@@ -22,11 +22,14 @@ func TestScheduleTask(t *testing.T) {
 	})
 	t.Run("should execute task at specified time", func(t *testing.T) {
 		startedAt := time.Now()
-		scheduler.At(startedAt.Add(time.Millisecond * 250)).Run(func() error {
-			executedAt := time.Now()
-			assert.WithinDuration(t, startedAt.Add(time.Millisecond*250), executedAt, time.Millisecond*50)
-			return nil
-		})
+		done := make(chan time.Time, 1)
+		scheduler.At(startedAt.Add(time.Millisecond * 250)).Run(func() error { done <- time.Now(); return nil })
+		select {
+		case executedAt := <-done:
+			assert.WithinDuration(t, startedAt.Add(250*time.Millisecond), executedAt, 50*time.Millisecond)
+		case <-time.After(time.Second):
+			t.Fatal("task not executed")
+		}
 	})
 }
 

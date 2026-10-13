@@ -16,17 +16,6 @@ func (d *Director) StartupTasks() {
 	d.checkMutedSegmentsInitially()
 }
 
-func (d *Director) isStreamFinished(meta stream.Metadata) bool {
-	if meta.Details == nil {
-		return false
-	}
-	state := d.getStreamState(meta.ID)
-	if state == stream.StateLive {
-		return false
-	}
-	return true
-}
-
 func (d *Director) checkDetailsInitially() {
 	for s, err := range d.readKnownStreams() {
 		if err != nil {
@@ -34,8 +23,9 @@ func (d *Director) checkDetailsInitially() {
 			continue
 		}
 		meta := s.Meta()
-		if !d.isStreamFinished(meta) {
-			continue
+		state := d.getStreamState(meta.ID)
+		if state == stream.StateLive {
+			return
 		}
 
 		monitor, ok := d.monitorByBroadcasterUserName[meta.BroadcasterUserName]
@@ -56,12 +46,14 @@ func (d *Director) checkMutedSegmentsInitially() {
 		}
 
 		meta := s.Meta()
-		if !d.isStreamFinished(meta) {
+		if meta.Details == nil || meta.MutedSegments != nil {
 			continue
 		}
-		if meta.MutedSegments != nil {
-			continue
+		state := d.getStreamState(meta.ID)
+		if state == stream.StateLive {
+			return
 		}
+
 		monitor, ok := d.monitorByBroadcasterUserName[meta.BroadcasterUserName]
 		if !ok {
 			logging.Warn("no monitor found for broadcaster", "broadcaster", meta.BroadcasterUserName, "stream_id", s.StreamID())

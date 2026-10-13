@@ -43,7 +43,7 @@ func (m *taskManager) done() <-chan struct{} {
 func (m *taskManager) runTask(task *task) {
 	err := task.work()
 	if err != nil {
-		logging.Warn("scheduled task failed: %v", err)
+		logging.Warn("scheduled task failed", "error", err)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -76,7 +76,7 @@ func (m *taskManager) shutdown() {
 	defer m.mu.Unlock()
 
 	if len(m.unfinishedTasks) > 0 {
-		logging.Warn("shutting down with %d unfinished task(s)", len(m.unfinishedTasks))
+		logging.Warn("shutting down with unfinished tasks", "count", len(m.unfinishedTasks))
 	}
 	m.unfinishedTasks = make(map[*task]struct{})
 }

@@ -63,6 +63,7 @@ func (m *Manager) GetDetails(state State) (Details, error) {
 		Directory:           m.StreamDirectory,
 		Size:                hlsInfo.Size,
 		StreamState:         state,
+		MutedSegment:        m.meta.MutedSegments,
 	}, nil
 }
 func (m *Manager) StreamID() string {
