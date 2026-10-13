@@ -44,6 +44,10 @@ func (d *Director) checkMutedSegmentsInitially() {
 		if meta.MutedSegments != nil {
 			continue
 		}
+		if details == nil {
+			logging.Warn("stream has no details, cannot check muted segments", "stream_id", s.StreamID())
+			continue
+		}
 		monitor, ok := d.monitorByBroadcasterUserName[meta.BroadcasterUserName]
 		if !ok {
 			logging.Warn("no monitor found for broadcaster", "broadcaster", meta.BroadcasterUserName, "stream_id", s.StreamID())
