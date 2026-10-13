@@ -3,6 +3,11 @@ interface BroadcasterInfo {
 	streams: StreamInfo[];
 }
 
+interface MutedSegment {
+	start_time_milliseconds: number;
+	end_time_milliseconds: number;
+}
+
 interface StreamInfo {
 	id: string;
 	state: 'live' | 'archived';
@@ -12,6 +17,7 @@ interface StreamInfo {
 	started_at: string; // RFC 3339 timestamp
 	title: string;
 	username: string;
+	muted_segments: MutedSegment[];
 }
 
 interface StreamListResponse {
@@ -81,5 +87,5 @@ const fetchBroadcasters = async (): Promise<BroadcasterInfo[]> => {
 	return broadcasters;
 };
 
-export type { BroadcasterInfo, StreamInfo };
+export type { BroadcasterInfo, MutedSegment, StreamInfo };
 export { fetchBroadcasters, fetchLiveStream, fetchStream };

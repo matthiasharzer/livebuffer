@@ -2,6 +2,7 @@ import '../../components/Video';
 import '../../components/StreamInfoBox';
 import '../../components/BackButton';
 import '../../components/ViewLayout';
+import '../../components/MutedSegmentsBox';
 import { Task } from '@lit/task';
 import { css, html } from 'lit';
 import { property, query } from 'lit/decorators.js';
@@ -59,6 +60,14 @@ export class VideoView extends Component {
 		return 0;
 	}
 
+	onJumpToSegment(event: CustomEvent<{ startSeconds: number }>) {
+		const { startSeconds } = event.detail;
+		const targetSeconds = Math.max(0, startSeconds - 5); // Jump 5 seconds before the muted segment
+		if (this.videoElement) {
+			this.videoElement.currentTime = targetSeconds;
+		}
+	}
+
 	renderView(stream: StreamInfo) {
 		const url = `/api/v1/video/${stream.id}/index.m3u8`;
 
@@ -67,6 +76,11 @@ export class VideoView extends Component {
 			<div class="container video-container">
 				<lb-video .title=${stream.title} .hlsSource="${url}" .startAt=${this.startAtSeconds} autoplay></lb-video>
 			</div>
+			${
+				stream.muted_segments.length > 0
+					? html`<lb-muted-segments-box .mutedSegments=${stream.muted_segments} @jump-to-segment=${this.onJumpToSegment.bind(this)}></lb-muted-segments-box>`
+					: ''
+			}
 			<lb-stream-info-box .stream=${stream} .getCurrentTime=${this.getCurrentTime.bind(this)}></lb-stream-info-box>
 		`;
 	}
