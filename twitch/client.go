@@ -3,6 +3,7 @@ package twitch
 import (
 	"encoding/json"
 	"fmt"
+	"iter"
 	"net/http"
 	"time"
 
@@ -142,9 +143,11 @@ func (c *Client) HandleInitialStreamState() error {
 	return nil
 }
 
-func (c *Client) getVideoByStreamID(streamID string) (*helix.Video, error) {
+func (c *Client) getVideos(cursor string) (*helix.VideosResponse, error) {
 	response, err := c.helixClient.GetVideos(&helix.VideosParams{
 		UserID: c.userID,
+		First:  100,
+		After:  cursor,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get videos: %w", err)
@@ -152,7 +155,36 @@ func (c *Client) getVideoByStreamID(streamID string) (*helix.Video, error) {
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get videos: status code %d", response.StatusCode)
 	}
-	for _, video := range response.Data.Videos {
+	return response, nil
+}
+
+func (c *Client) enumerateVideos() iter.Seq2[helix.Video, error] {
+	return func(yield func(helix.Video, error) bool) {
+		var cursor string
+		for {
+			videosResponse, err := c.getVideos(cursor)
+			if err != nil {
+				yield(helix.Video{}, err)
+				return
+			}
+			for _, video := range videosResponse.Data.Videos {
+				if !yield(video, nil) {
+					return
+				}
+			}
+			if videosResponse.Data.Pagination.Cursor == "" {
+				return
+			}
+			cursor = videosResponse.Data.Pagination.Cursor
+		}
+	}
+}
+
+func (c *Client) getVideoByStreamID(streamID string) (*helix.Video, error) {
+	for video, err := range c.enumerateVideos() {
+		if err != nil {
+			return nil, fmt.Errorf("failed to enumerate videos: %w", err)
+		}
 		if video.StreamID == streamID {
 			return &video, nil
 		}
