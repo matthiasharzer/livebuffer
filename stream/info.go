@@ -23,6 +23,7 @@ type Details struct {
 	StreamState         State
 	Directory           string
 	Size                int64
+	MutedSegment        []MutedSegment
 }
 
 type ClipInfo struct {

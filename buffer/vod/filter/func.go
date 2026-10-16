@@ -14,6 +14,17 @@ func And(a, b Func) Func {
 	}
 }
 
+func ByAnyBroadcasterNames(names ...string) Func {
+	return func(manager stream.Manager) bool {
+		for _, name := range names {
+			if strings.EqualFold(manager.Meta().BroadcasterUserName, name) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 func ByBroadcasterName(name string) Func {
 	return func(manager stream.Manager) bool {
 		return strings.EqualFold(manager.Meta().BroadcasterUserName, name)

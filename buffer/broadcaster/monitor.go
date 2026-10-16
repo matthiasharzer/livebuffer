@@ -21,21 +21,26 @@ const (
 	RecordingStateRecording RecordingState = "recording"
 )
 
+type RecordingStateChangeEvent struct {
+	Username string
+	State    RecordingState
+	StreamID string
+}
+
 type StreamDirectoryFunc = func(streamID string) string
 
 type Monitor struct {
 	maxStreams               int
-	broadcasterUserName      string
-	onlineChannel            observer.ReadonlyChannel[twitch.StreamOnlineState]
+	twitchClient             *twitch.Client
 	unsubscribeOnlineChannel observer.UnsubscribeFunc
 	liveRecordingSession     *stream.RecordingSession
-	recordingStateChannel    observer.ReadWriteChannel[RecordingState]
+	recordingStateChannel    observer.ReadWriteChannel[RecordingStateChangeEvent]
 	streamDirectory          StreamDirectoryFunc
 
 	mu sync.RWMutex
 }
 
-func NewMonitor(maxStreams int, username string, onlineChannel observer.ReadonlyChannel[twitch.StreamOnlineState], streamDirectory StreamDirectoryFunc) (*Monitor, error) {
+func NewMonitor(maxStreams int, twitchClient *twitch.Client, streamDirectory StreamDirectoryFunc) (*Monitor, error) {
 	if maxStreams <= 0 {
 		return nil, errors.New("maxStreams must be greater than 0")
 	}
@@ -46,10 +51,9 @@ func NewMonitor(maxStreams int, username string, onlineChannel observer.Readonly
 
 	monitor := &Monitor{
 		maxStreams:            maxStreams,
-		broadcasterUserName:   username,
-		onlineChannel:         onlineChannel,
+		twitchClient:          twitchClient,
 		streamDirectory:       streamDirectory,
-		recordingStateChannel: observer.NewChannel[RecordingState](),
+		recordingStateChannel: observer.NewChannel[RecordingStateChangeEvent](),
 		mu:                    sync.RWMutex{},
 	}
 	monitor.subscribeToOnlineChannel()
@@ -57,7 +61,7 @@ func NewMonitor(maxStreams int, username string, onlineChannel observer.Readonly
 }
 
 func (m *Monitor) subscribeToOnlineChannel() {
-	m.unsubscribeOnlineChannel = m.onlineChannel.Subscribe(m.onlineStateChanged)
+	m.unsubscribeOnlineChannel = m.twitchClient.OnlineChannel().Subscribe(m.onlineStateChanged)
 }
 
 func (m *Monitor) onlineStateChanged(state twitch.StreamOnlineState) {
@@ -114,19 +118,27 @@ func (m *Monitor) wentLive(event stream.WentLiveEvent) {
 		return
 	}
 
-	m.recordingStateChannel.Publish(RecordingStateRecording)
+	m.recordingStateChannel.Publish(RecordingStateChangeEvent{
+		Username: event.BroadcasterUserLogin,
+		StreamID: event.StreamID,
+		State:    RecordingStateRecording,
+	})
 	logging.Info("started recording session", "username", event.BroadcasterUserLogin, "stream_id", event.StreamID)
 }
 
 func (m *Monitor) wentOffline(event stream.WentOfflineEvent) {
-	logging.Info("stream went offline, stopping recording", "username", m.broadcasterUserName)
+	logging.Info("stream went offline, stopping recording", "username", m.twitchClient.Username())
 	m.mu.Lock()
 	m.stopRecording()
 	m.supplementStreamMetadata(event)
 	m.mu.Unlock()
 
-	m.recordingStateChannel.Publish(RecordingStateStopped)
-	logging.Info("stopped recording session", "username", m.broadcasterUserName)
+	m.recordingStateChannel.Publish(RecordingStateChangeEvent{
+		Username: event.BroadcasterUserLogin,
+		StreamID: event.StreamID,
+		State:    RecordingStateStopped,
+	})
+	logging.Info("stopped recording session", "username", m.twitchClient.Username())
 }
 
 func (m *Monitor) supplementStreamMetadata(event stream.WentOfflineEvent) {
@@ -143,10 +155,18 @@ func (m *Monitor) supplementStreamMetadata(event stream.WentOfflineEvent) {
 		}
 	}
 
+	err = m.supplementStreamMetadataDetails(event.StreamID)
+	if err != nil {
+		logging.Error("failed to supplement stream metadata details", "error", err)
+	}
+}
+
+func (m *Monitor) supplementStreamMetadataDetails(streamID string) error {
+	streamDirectory := m.streamDirectory(streamID)
+
 	hlsInfo, err := hls.Stat(stream.FilesDirectory(streamDirectory))
 	if err != nil {
-		logging.Warn("failed to stat hls directory", "error", err)
-		return
+		return err
 	}
 
 	err = stream.UpdateMetadata(streamDirectory, func(meta *stream.Metadata) error {
@@ -157,8 +177,9 @@ func (m *Monitor) supplementStreamMetadata(event stream.WentOfflineEvent) {
 		return nil
 	})
 	if err != nil {
-		logging.Warn("failed to update metadata with hls info", "error", err)
+		return err
 	}
+	return nil
 }
 
 func (m *Monitor) stopRecording() {
@@ -174,7 +195,48 @@ func (m *Monitor) stopRecording() {
 	m.liveRecordingSession = nil
 }
 
-func (m *Monitor) RecordingStateChannel() observer.ReadonlyChannel[RecordingState] {
+func (m *Monitor) SupplementStreamMetadata(streamID string) {
+	logging.Info("supplementing stream metadata", "stream_id", streamID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	err := m.supplementStreamMetadataDetails(streamID)
+	if err != nil {
+		logging.Error("failed to supplement stream metadata details", "error", err, "stream_id", streamID)
+	}
+}
+
+func (m *Monitor) CheckMutedSegments(streamID string) {
+	logging.Info("checking for muted segments", "stream_id", streamID)
+	streamDirectory := m.streamDirectory(streamID)
+	mutedSegments, err := m.twitchClient.GetMutedSegments(streamID)
+	if err != nil {
+		logging.Error("failed to get muted segments", "error", err, "stream_id", streamID)
+		return
+	}
+
+	logging.Info("found muted segments for stream", "stream_id", streamID, "count", len(mutedSegments))
+
+	//goland:noinspection ALL
+	mutedSegmentsMeta := []stream.MutedSegment{}
+	for _, mutedSegment := range mutedSegments {
+		mutedSegmentsMeta = append(mutedSegmentsMeta, stream.MutedSegment{
+			Start: mutedSegment.Start,
+			End:   mutedSegment.End,
+		})
+	}
+
+	err = stream.UpdateMetadata(streamDirectory, func(meta *stream.Metadata) error {
+		meta.MutedSegments = mutedSegmentsMeta
+		return nil
+	})
+	if err != nil {
+		logging.Error("failed to update metadata with muted segments", "error", err, "stream_id", streamID)
+		return
+	}
+}
+
+func (m *Monitor) RecordingStateChannel() observer.ReadonlyChannel[RecordingStateChangeEvent] {
 	return m.recordingStateChannel
 }
 
@@ -196,7 +258,7 @@ func (m *Monitor) GetLiveStreamID() string {
 func (m *Monitor) BroadcasterUserName() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.broadcasterUserName
+	return m.twitchClient.Username()
 }
 
 func (m *Monitor) MaxStreams() int {
