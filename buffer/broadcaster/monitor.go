@@ -195,7 +195,7 @@ func (m *Monitor) stopRecording() {
 	m.liveRecordingSession = nil
 }
 
-func (m *Monitor) SupplementStreamMetadata(streamID string) {
+func (m *Monitor) SupplementStreamMetadataDetails(streamID string) {
 	logging.Info("supplementing stream metadata", "stream_id", streamID)
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -211,7 +211,7 @@ func (m *Monitor) CheckMutedSegments(streamID string) {
 	streamDirectory := m.streamDirectory(streamID)
 	mutedSegments, err := m.twitchClient.GetMutedSegments(streamID)
 	if err != nil {
-		logging.Error("failed to get muted segments", "error", err, "stream_id", streamID)
+		logging.Warn("failed to get muted segments", "error", err, "stream_id", streamID)
 		return
 	}
 

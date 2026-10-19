@@ -23,6 +23,10 @@ func (d *Director) checkDetailsInitially() {
 			continue
 		}
 		meta := s.Meta()
+		if meta.Details != nil {
+			// already has details, no need to supplement
+			continue
+		}
 		state := d.getStreamState(meta.ID)
 		if state == stream.StateLive {
 			continue
@@ -34,7 +38,7 @@ func (d *Director) checkDetailsInitially() {
 			continue
 		}
 
-		monitor.SupplementStreamMetadata(meta.ID)
+		monitor.SupplementStreamMetadataDetails(meta.ID)
 	}
 }
 
