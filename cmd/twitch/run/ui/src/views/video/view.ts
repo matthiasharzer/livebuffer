@@ -76,12 +76,12 @@ export class VideoView extends Component {
 			<div class="container video-container">
 				<lb-video .title=${stream.title} .hlsSource="${url}" .startAt=${this.startAtSeconds} autoplay></lb-video>
 			</div>
+			<lb-stream-info-box .stream=${stream} .getCurrentTime=${this.getCurrentTime.bind(this)}></lb-stream-info-box>
 			${
 				stream.muted_segments.length > 0
 					? html`<lb-muted-segments-box .mutedSegments=${stream.muted_segments} @jump-to-segment=${this.onJumpToSegment.bind(this)}></lb-muted-segments-box>`
 					: ''
 			}
-			<lb-stream-info-box .stream=${stream} .getCurrentTime=${this.getCurrentTime.bind(this)}></lb-stream-info-box>
 		`;
 	}
 
