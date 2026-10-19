@@ -32,9 +32,14 @@ func MetadataFile(streamDir string) string {
 	return filepath.Join(streamDir, metadataFileName)
 }
 
+type MutedSegment struct {
+	Start time.Duration `json:"start"`
+	End   time.Duration `json:"end"`
+}
+
 type MetadataDetails struct {
-	Duration time.Duration
-	Size     int64
+	Duration time.Duration `json:"duration"`
+	Size     int64         `json:"size"`
 }
 
 type Metadata struct {
@@ -43,6 +48,7 @@ type Metadata struct {
 	BroadcasterUserName string           `json:"broadcaster_user_name"`
 	StartedAt           time.Time        `json:"started_at"`
 	Details             *MetadataDetails `json:"details,omitempty"`
+	MutedSegments       []MutedSegment   `json:"muted_segments"`
 }
 
 func writeMetadata(streamDir string, metadata Metadata) error {

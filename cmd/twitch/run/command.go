@@ -108,7 +108,7 @@ func getDirector(twitchClients []*twitch.Client, bufferDirectory string) (*buffe
 
 	var monitors []*broadcaster.Monitor
 	for _, client := range twitchClients {
-		monitor, err := broadcaster.NewMonitor(maxStreams, client.Username(), client.OnlineChannel(), repository.StreamDirectory)
+		monitor, err := broadcaster.NewMonitor(maxStreams, client, repository.StreamDirectory)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create broadcast monitor: %w", err)
 		}
@@ -213,6 +213,9 @@ var Command = &cobra.Command{
 				return fmt.Errorf("failed to start event sub for user %s: %w", client.Username(), err)
 			}
 		}
+
+		// supplement details/muted segments for existing streams
+		director.StartupTasks()
 
 		mux := GetMux(director, usernames, eventSubClient.HTTPHandler())
 
