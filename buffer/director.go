@@ -61,6 +61,7 @@ func (d *Director) onRecordingStateChange(username string, event broadcaster.Rec
 	}
 
 	if event.State == broadcaster.RecordingStateStopped {
+		logging.Info("scheduled check for muted segments", "username", username, "stream_id", event.StreamID, "delay", checkMutedSegmentsDelay.String())
 		scheduler.In(checkMutedSegmentsDelay).Run(func() error {
 			monitor.CheckMutedSegments(event.StreamID)
 			return nil
