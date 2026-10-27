@@ -17,8 +17,6 @@ body {
 	margin: 0;
 	line-height: 1;
 	overflow: hidden;
-	overflow-y: auto;
-	scrollbar-gutter: stable both-edges;
 	color-scheme: dark;
 	background-color: #1a1919;
 	color: var(--text-color);
