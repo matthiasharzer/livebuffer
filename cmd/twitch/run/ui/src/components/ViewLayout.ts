@@ -10,10 +10,7 @@ export class ViewLayout extends Component {
 			align-items: center;
 			justify-content: safe center;
 			width: 100%;
-			height: 100%;
 			padding: 1rem;
-			overflow-y: auto;
-			scrollbar-gutter: stable;
 		}
 
 		.view {

@@ -1,4 +1,5 @@
 import './components/Background.ts';
+import './components/Footer.ts';
 import { Router } from '@lit-labs/router';
 import { css, html } from 'lit';
 import { Component } from './litutil/Component.ts';
@@ -9,14 +10,21 @@ export class App extends Component {
 		:host {
 			display: flex;
 			flex-direction: column;
-			align-items: center;
+			overflow-y: auto;
+			scrollbar-gutter: stable both-edges;
+
 			width: 100%;
 			height: 100%;
+			min-height: 100dvh;
 		}
 
 		main {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			justify-content: safe center;
+
 			width: 100%;
-			height: 100%;
 		}
 
 		lb-background {
@@ -74,6 +82,7 @@ export class App extends Component {
 			<main>
 				${this.router.outlet()}
 			</main>
+			<lb-footer></lb-footer>
 		`;
 	}
 }
