@@ -12,18 +12,20 @@ export class Footer extends Component {
 
 		p {
 			padding: 1rem;
+			width: 100%;
 			max-width: 700px;
 			color: var(--text-reduced-color);
+			text-align: center;
 		}
 
 		a {
-			color: color-mix(in srgb, var(--primary-reduced-color) 70%, var(--text-reduced-color));
+			color: color-mix(in srgb, var(--primary-reduced-color) 50%, var(--text-reduced-color));
 			text-decoration: none;
 
 			transition: color 0.2s ease-in-out;
 
 			&:hover {
-				color: var(--primary-color);
+				color: var(--primary-reduced-color);
 			}
 		}
 	`;
