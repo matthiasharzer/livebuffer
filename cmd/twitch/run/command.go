@@ -13,9 +13,9 @@ import (
 	"github.com/matthiasharzer/livebuffer/buffer/vod"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/twitch/eventsub"
-	"github.com/matthiasharzer/livebuffer/util/fsutil"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
 	"github.com/matthiasharzer/livebuffer/util/stringutil"
+	"github.com/matthiasharzer/service-kit/fstools"
 	"github.com/matthiasharzer/service-kit/logging"
 	"github.com/nicklaw5/helix/v2"
 	"github.com/spf13/cobra"
@@ -149,7 +149,7 @@ var Command = &cobra.Command{
 				return fmt.Errorf("failed to create buffer directory: %w", err)
 			}
 		} else {
-			tmpDir, cleanup, err := fsutil.TemporaryDirectory()
+			tmpDir, cleanup, err := fstools.TemporaryDirectory()
 			if err != nil {
 				return err
 			}
