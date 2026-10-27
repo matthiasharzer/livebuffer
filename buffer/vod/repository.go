@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/matthiasharzer/livebuffer/buffer/vod/filter"
-	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/stream"
+	"github.com/matthiasharzer/service-kit/logging"
 )
 
 type BroadcasterName = string

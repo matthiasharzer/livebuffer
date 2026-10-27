@@ -3,9 +3,9 @@ package buffer
 import (
 	"time"
 
-	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/scheduler"
 	"github.com/matthiasharzer/livebuffer/stream"
+	"github.com/matthiasharzer/service-kit/logging"
 )
 
 func (d *Director) StartupTasks() {

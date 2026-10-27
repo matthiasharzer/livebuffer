@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/twitch/eventsub"
+	"github.com/matthiasharzer/service-kit/logging"
 	"github.com/nicklaw5/helix/v2"
 )
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/hls"
-	"github.com/matthiasharzer/livebuffer/logging"
+	"github.com/matthiasharzer/service-kit/logging"
 )
 
 func Handler(director *buffer.Director, username string) http.HandlerFunc {
