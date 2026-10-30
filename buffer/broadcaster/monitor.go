@@ -215,7 +215,11 @@ func (m *Monitor) CheckMutedSegments(streamID string) {
 		return
 	}
 
-	logging.Info("found muted segments for stream", "stream_id", streamID, "count", len(mutedSegments))
+	if len(mutedSegments) == 0 {
+		logging.Info("no muted segments found for stream", "stream_id", streamID)
+	} else {
+		logging.Info("found muted segments for stream", "stream_id", streamID, "count", len(mutedSegments))
+	}
 
 	//goland:noinspection ALL
 	mutedSegmentsMeta := []stream.MutedSegment{}

@@ -69,7 +69,7 @@ export class Background extends Component {
 		}
 
 		.background .level-2 {
-			--circle-color: color-mix(in srgb, var(--primary-color) 70%, black);
+			--circle-color: color-mix(in srgb, var(--primary-color) 90%, black);
 
 			transform: translate(20px, 20px);
 			opacity: 0;
