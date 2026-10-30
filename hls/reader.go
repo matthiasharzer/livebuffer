@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/matthiasharzer/livebuffer/util/cmdutil"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
+	"github.com/matthiasharzer/service-kit/util/cmdutil"
 )
 
 func createSnapshot(directory string) (string, func(), error) {

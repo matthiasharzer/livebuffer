@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/matthiasharzer/livebuffer/util/cmdutil"
+	"github.com/matthiasharzer/service-kit/util/cmdutil"
 )
 
 type writer struct {

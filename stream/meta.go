@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/matthiasharzer/livebuffer/util/mutexutil"
+	"github.com/matthiasharzer/service-kit/util/mutexutil"
 )
 
 var mappedMutex = mutexutil.NewMappedMutex()

@@ -13,6 +13,7 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/matthiasharzer/service-kit v0.1.1 h1:ebGvzVK783GRmaY+YQBFyeJG7jq9diDm+1v9qIz0pBg=
 github.com/matthiasharzer/service-kit v0.1.1/go.mod h1:l5STMaEqO5nyKAt3ME9a0dp/uBPIUvdhWygBwT4/YvI=
+github.com/matthiasharzer/service-kit v0.2.0/go.mod h1:l5STMaEqO5nyKAt3ME9a0dp/uBPIUvdhWygBwT4/YvI=
 github.com/nicklaw5/helix/v2 v2.34.0 h1:mdio9Wm+TQIjuJ199myvcKEcAmHiqigHsZlG1fDaPIE=
 github.com/nicklaw5/helix/v2 v2.34.0/go.mod h1:KaXa2mb2kBzsDana9RbXevTgnfU95DMoSORWo2hqlWA=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=

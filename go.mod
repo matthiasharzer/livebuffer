@@ -7,7 +7,7 @@ tool honnef.co/go/tools/cmd/staticcheck
 require (
 	github.com/docker/go-units v0.5.0
 	github.com/dustin/go-humanize v1.1.0
-	github.com/matthiasharzer/service-kit v0.1.1
+	github.com/matthiasharzer/service-kit v0.2.0
 	github.com/nicklaw5/helix/v2 v2.34.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1

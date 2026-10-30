@@ -13,7 +13,7 @@ import (
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/live"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/api/v1/video"
 	"github.com/matthiasharzer/livebuffer/cmd/twitch/run/ui"
-	"github.com/matthiasharzer/livebuffer/util/httputil"
+	"github.com/matthiasharzer/service-kit/util/httputil"
 )
 
 const eventSubPath = "/api/v1/twitch-event-sub"

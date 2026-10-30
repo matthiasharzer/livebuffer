@@ -7,8 +7,8 @@ import (
 	"github.com/matthiasharzer/livebuffer/buffer"
 	"github.com/matthiasharzer/livebuffer/stream"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
-	"github.com/matthiasharzer/livebuffer/util/ioutil"
 	"github.com/matthiasharzer/service-kit/logging"
+	"github.com/matthiasharzer/service-kit/util/ioutil"
 )
 
 func Handler(directory *buffer.Director) http.HandlerFunc {
