@@ -18,7 +18,7 @@ import (
 
 const eventSubPath = "/api/v1/twitch-event-sub"
 
-func GetMux(director *buffer.Director, usernames []string, eventSubHandler http.Handler) *http.ServeMux {
+func GetMux(director *buffer.Director, usernames []string, eventSubHandler http.Handler, withUI bool) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/v1/list", list.Handler(director))
@@ -38,12 +38,15 @@ func GetMux(director *buffer.Director, usernames []string, eventSubHandler http.
 	})
 	mux.Handle(fmt.Sprintf("POST %s", eventSubPath), eventSubHandler)
 	mux.Handle("GET /api/", http.NotFoundHandler())
-	mux.Handle("GET /",
-		httputil.UseMiddleware(
-			[]httputil.Middleware{httputil.GZIPMiddleware()},
-			httputil.HandleStaticSite(ui.Content),
-		),
-	)
+
+	if withUI {
+		mux.Handle("GET /",
+			httputil.UseMiddleware(
+				[]httputil.Middleware{httputil.GZIPMiddleware()},
+				httputil.HandleStaticSite(ui.Content),
+			),
+		)
+	}
 
 	return mux
 }
