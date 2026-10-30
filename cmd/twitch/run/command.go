@@ -28,6 +28,7 @@ var bufferDirectoryArg string
 var liveBufferPublicURL string
 var maxStreams = 2
 var eventSubSecretArg string
+var withUI bool
 
 var devNoEventSub bool
 
@@ -40,6 +41,7 @@ func init() {
 	Command.Flags().StringVarP(&liveBufferPublicURL, "public-url", "", "", "Public URL for the live buffer (required)")
 	Command.Flags().IntVarP(&maxStreams, "max-streams", "", maxStreams, "Maximum number of concurrent streams to buffer")
 	Command.Flags().StringVarP(&eventSubSecretArg, "eventsub-secret", "", eventSubSecretArg, "Secret for Twitch EventSub (10-100 chars) (default: random string)")
+	Command.Flags().BoolVarP(&withUI, "with-ui", "", withUI, "Enable the web UI (default: false)")
 
 	err := Command.MarkFlagRequired("username")
 	if err != nil {
@@ -217,7 +219,7 @@ var Command = &cobra.Command{
 		// supplement details/muted segments for existing streams
 		director.StartupTasks()
 
-		mux := GetMux(director, usernames, eventSubClient.HTTPHandler())
+		mux := GetMux(director, usernames, eventSubClient.HTTPHandler(), withUI)
 
 		addr := fmt.Sprintf("%s:%d", httpHost, httpPort)
 		logging.Info("starting livebuffer server", "host", httpHost, "port", httpPort)

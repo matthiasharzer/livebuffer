@@ -24,7 +24,7 @@ services:
       TWITCH_CLIENT_ID: <your_client_id>
       TWITCH_CLIENT_SECRET: <your_client_secret>
 
-    command: twitch run --port 4000 --username <twitch_username> --public-url <https://yourdomain.com>
+    command: twitch run --port 4000 --username <twitch_username> --public-url <https://yourdomain.com> --with-ui
 ```
 > [!Note]
 > Make sure to replace `<your_client_id>`, `<your_client_secret>`, `<twitch_username>`, and `<https://yourdomain.com>` with your actual Twitch API credentials, the username of the livestream you want to buffer, and the public URL where the REST API will be accessible.
@@ -65,6 +65,7 @@ Download the [latest release](https://github.com/matthiasharzer/livebuffer/relea
 | `--buffer-dir`      | ❌       | _temporary directory_ | The directory where the livestream buffer will be stored. By default, a temporary directory will be created and used. If you want to persist the buffer across restarts, specify a directory here (e.g., `/data/buffer`).                                                                                                                 |
 | `--max-streams`     | ❌       | 2                     | The maximum number of streams to keep on disk.                                                                                                                                                                                                                                                                                            |
 | `--eventsub-secret` | ❌       | _random string_       | The secret used for Twitch EventSub Webhook notifications. Twitch uses this secret string to authenticate webhook notification against the REST APIs eventsub endpoint. Must be between 10 and 100 characters long and may only contain ASCII characters                                                                                  |
+| `--with-ui`         | ❌       | false                 | Enables the UI for browsing available streams, watching them and downloading clips. The UI is available at the root of the REST API.                                                                                                                                                                                                      |
 
 #### Environment Variables
 
@@ -103,7 +104,7 @@ A stream returned by either `/api/v1/list` or `/api/v1/details/{streamID}` has t
 | `size_bytes`            | int    | The size of the stream in bytes.                                                        |
 
 #### UI
-livebuffer comes with a small UI to get an overview of the available broadcasters and their recorded streams, as well as a simple video player to watch the streams. Additionally, videos can be downloaded or clipped directly from the UI. The UI is available at the root of the REST API.
+If enabled, livebuffer comes with a small UI to get an overview of the available broadcasters and their recorded streams, as well as a simple video player to watch the streams. Additionally, videos can be downloaded or clipped directly from the UI. The UI is available at the root of the REST API.
 
 ### `version` Command
 Print the version of the tool:
