@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/matthiasharzer/livebuffer/hls"
-	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/stream"
 	"github.com/matthiasharzer/livebuffer/twitch"
 	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
+	"github.com/matthiasharzer/service-kit/logging"
 )
 
 type RecordingState string

@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/util/ffmpegutil"
+	"github.com/matthiasharzer/service-kit/logging"
 )
 
 type Recorder struct {

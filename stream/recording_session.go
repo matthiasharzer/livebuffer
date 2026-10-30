@@ -7,8 +7,8 @@ import (
 	"os"
 
 	"github.com/matthiasharzer/livebuffer/hls"
-	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/twitch"
+	"github.com/matthiasharzer/service-kit/logging"
 )
 
 type RecordingSession struct {

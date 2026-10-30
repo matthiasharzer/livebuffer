@@ -2,7 +2,7 @@ package funcutils
 
 //TODO: rename to funcutil
 
-import "github.com/matthiasharzer/livebuffer/logging"
+import "github.com/matthiasharzer/service-kit/logging"
 
 func LogError(fn func() error, message string) {
 	err := fn()

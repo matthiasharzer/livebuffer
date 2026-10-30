@@ -7,10 +7,10 @@ import (
 
 	"github.com/matthiasharzer/livebuffer/buffer/broadcaster"
 	"github.com/matthiasharzer/livebuffer/buffer/vod"
-	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/observer"
 	"github.com/matthiasharzer/livebuffer/scheduler"
 	"github.com/matthiasharzer/livebuffer/stream"
+	"github.com/matthiasharzer/service-kit/logging"
 )
 
 const checkMutedSegmentsDelay = 24 * time.Hour

@@ -5,8 +5,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/matthiasharzer/livebuffer/logging"
 	"github.com/matthiasharzer/livebuffer/util/funcutils"
+	"github.com/matthiasharzer/service-kit/logging"
 	"github.com/nicklaw5/helix/v2"
 )
 

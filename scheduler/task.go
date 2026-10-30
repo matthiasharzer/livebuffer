@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/matthiasharzer/livebuffer/logging"
+	"github.com/matthiasharzer/service-kit/logging"
 )
 
 var manager *taskManager
